@@ -5,10 +5,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	databasev1alpha1 "sidkubers.io/operator/api/v1alpha1"
+	"sidkubers.io/operator/internal/engines"
 )
 
 // DesiredHeadlessService generates headless service for stable StatefulSet DNS
 func DesiredHeadlessService(db *databasev1alpha1.DatabaseCluster) *corev1.Service {
+	eng := engines.GetEngine(db.GetEngine())
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      db.Name + "-headless",
@@ -21,8 +23,8 @@ func DesiredHeadlessService(db *databasev1alpha1.DatabaseCluster) *corev1.Servic
 			},
 			Ports: []corev1.ServicePort{
 				{
-					Name: "postgres",
-					Port: 5432,
+					Name: eng.PortName(),
+					Port: eng.Port(),
 				},
 			},
 		},
@@ -31,6 +33,7 @@ func DesiredHeadlessService(db *databasev1alpha1.DatabaseCluster) *corev1.Servic
 
 // DesiredRWService routes traffic exclusively to the writable Primary (CNPG -rw pattern)
 func DesiredRWService(db *databasev1alpha1.DatabaseCluster) *corev1.Service {
+	eng := engines.GetEngine(db.GetEngine())
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      db.Name + "-rw",
@@ -44,8 +47,8 @@ func DesiredRWService(db *databasev1alpha1.DatabaseCluster) *corev1.Service {
 			},
 			Ports: []corev1.ServicePort{
 				{
-					Name: "postgres",
-					Port: 5432,
+					Name: eng.PortName(),
+					Port: eng.Port(),
 				},
 			},
 		},
@@ -54,6 +57,7 @@ func DesiredRWService(db *databasev1alpha1.DatabaseCluster) *corev1.Service {
 
 // DesiredROService routes read-only queries exclusively to Standby Replicas (CNPG -ro pattern)
 func DesiredROService(db *databasev1alpha1.DatabaseCluster) *corev1.Service {
+	eng := engines.GetEngine(db.GetEngine())
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      db.Name + "-ro",
@@ -67,8 +71,8 @@ func DesiredROService(db *databasev1alpha1.DatabaseCluster) *corev1.Service {
 			},
 			Ports: []corev1.ServicePort{
 				{
-					Name: "postgres",
-					Port: 5432,
+					Name: eng.PortName(),
+					Port: eng.Port(),
 				},
 			},
 		},
@@ -77,6 +81,7 @@ func DesiredROService(db *databasev1alpha1.DatabaseCluster) *corev1.Service {
 
 // DesiredRService load-balances read queries across ALL instances: Primary + Replicas (CNPG -r pattern)
 func DesiredRService(db *databasev1alpha1.DatabaseCluster) *corev1.Service {
+	eng := engines.GetEngine(db.GetEngine())
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      db.Name + "-r",
@@ -89,8 +94,8 @@ func DesiredRService(db *databasev1alpha1.DatabaseCluster) *corev1.Service {
 			},
 			Ports: []corev1.ServicePort{
 				{
-					Name: "postgres",
-					Port: 5432,
+					Name: eng.PortName(),
+					Port: eng.Port(),
 				},
 			},
 		},

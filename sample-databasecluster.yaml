@@ -4,6 +4,7 @@ metadata:
   name: sample-postgres
   namespace: demo-app
 spec:
+  engine: "postgres"
   replicas: 2
   version: "16"
   storage: "5Gi"

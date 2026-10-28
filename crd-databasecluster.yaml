@@ -19,6 +19,9 @@ spec:
     subresources:
       status: {}
     additionalPrinterColumns:
+    - name: Engine
+      type: string
+      jsonPath: .spec.engine
     - name: Replicas
       type: integer
       jsonPath: .spec.replicas
@@ -43,6 +46,12 @@ spec:
             required:
             - credentialsSecretRef
             properties:
+              engine:
+                type: string
+                enum:
+                - postgres
+                - redis
+                default: "postgres"
               replicas:
                 type: integer
                 minimum: 1
@@ -54,6 +63,8 @@ spec:
                 - "15"
                 - "16"
                 - "17"
+                - "6"
+                - "7"
                 default: "16"
               storage:
                 type: string

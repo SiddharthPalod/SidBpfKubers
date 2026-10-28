@@ -19,6 +19,12 @@ type ReplicationSpec struct {
 
 // DatabaseClusterSpec defines the desired state of DatabaseCluster
 type DatabaseClusterSpec struct {
+	// Engine defines the database engine type: "postgres" (default) or "redis"
+	// +kubebuilder:validation:Enum=postgres;redis
+	// +kubebuilder:default="postgres"
+	// +optional
+	Engine string `json:"engine,omitempty"`
+
 	// Replicas is the number of database pods (1-9)
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`
@@ -155,4 +161,12 @@ func (in *DatabaseClusterList) DeepCopyObject() runtime.Object {
 		return c
 	}
 	return nil
+}
+
+// GetEngine returns the configured database engine, defaulting to "postgres"
+func (db *DatabaseCluster) GetEngine() string {
+	if db.Spec.Engine == "" {
+		return "postgres"
+	}
+	return db.Spec.Engine
 }

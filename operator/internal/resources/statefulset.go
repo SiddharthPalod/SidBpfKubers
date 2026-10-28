@@ -1,30 +1,16 @@
 package resources
 
 import (
-	"fmt"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	databasev1alpha1 "sidkubers.io/operator/api/v1alpha1"
+	"sidkubers.io/operator/internal/engines"
 )
 
-// ResolveVersion defaults version to 16 if unspecified
-func ResolveVersion(v string) string {
-	if v == "" {
-		return "16"
-	}
-	return v
-}
-
-// DesiredImage formats the PostgreSQL image tag
-func DesiredImage(version string) string {
-	return fmt.Sprintf("postgres:%s-alpine", ResolveVersion(version))
-}
-
-// DesiredStatefulSet constructs hardened PostgreSQL StatefulSet with probes, storage, limits, and WAL replication entrypoint
+// DesiredStatefulSet constructs hardened StatefulSet using the configured Engine strategy
 func DesiredStatefulSet(db *databasev1alpha1.DatabaseCluster, secretHash string) *appsv1.StatefulSet {
 	storageSize := db.Spec.Storage
 	if storageSize == "" {
@@ -45,7 +31,9 @@ func DesiredStatefulSet(db *databasev1alpha1.DatabaseCluster, secretHash string)
 		annotations["database.sidkubers.io/secret-hash"] = secretHash
 	}
 
-	scriptMode := int32(0755)
+	eng := engines.GetEngine(db.GetEngine())
+	container := eng.BuildContainer(db)
+	volumes := eng.Volumes(db)
 
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -77,100 +65,8 @@ func DesiredStatefulSet(db *databasev1alpha1.DatabaseCluster, secretHash string)
 							},
 						},
 					},
-					Containers: []corev1.Container{
-						{
-							Name:    "postgres",
-							Image:   DesiredImage(db.Spec.Version),
-							Command: []string{"/bin/sh", "/scripts/entrypoint.sh"},
-							Ports: []corev1.ContainerPort{
-								{
-									Name:          "postgres",
-									ContainerPort: 5432,
-								},
-							},
-							Resources: corev1.ResourceRequirements{
-								Requests: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("100m"),
-									corev1.ResourceMemory: resource.MustParse("128Mi"),
-								},
-								Limits: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("500m"),
-									corev1.ResourceMemory: resource.MustParse("512Mi"),
-								},
-							},
-							LivenessProbe: &corev1.Probe{
-								ProbeHandler: corev1.ProbeHandler{
-									Exec: &corev1.ExecAction{
-										Command: []string{"pg_isready", "-U", "postgres", "-h", "127.0.0.1"},
-									},
-								},
-								InitialDelaySeconds: 15,
-								PeriodSeconds:       10,
-								TimeoutSeconds:      3,
-							},
-							ReadinessProbe: &corev1.Probe{
-								ProbeHandler: corev1.ProbeHandler{
-									Exec: &corev1.ExecAction{
-										Command: []string{"pg_isready", "-U", "postgres", "-h", "127.0.0.1"},
-									},
-								},
-								InitialDelaySeconds: 5,
-								PeriodSeconds:       5,
-								TimeoutSeconds:      3,
-							},
-							Env: []corev1.EnvVar{
-								{
-									Name:  "PGDATA",
-									Value: "/var/lib/postgresql/data/pgdata",
-								},
-								{
-									Name: "POSTGRES_USER",
-									ValueFrom: &corev1.EnvVarSource{
-										SecretKeyRef: &corev1.SecretKeySelector{
-											LocalObjectReference: corev1.LocalObjectReference{
-												Name: db.Spec.CredentialsSecretRef.Name,
-											},
-											Key: "username",
-										},
-									},
-								},
-								{
-									Name: "POSTGRES_PASSWORD",
-									ValueFrom: &corev1.EnvVarSource{
-										SecretKeyRef: &corev1.SecretKeySelector{
-											LocalObjectReference: corev1.LocalObjectReference{
-												Name: db.Spec.CredentialsSecretRef.Name,
-											},
-											Key: "password",
-										},
-									},
-								},
-							},
-							VolumeMounts: []corev1.VolumeMount{
-								{
-									Name:      "data",
-									MountPath: "/var/lib/postgresql/data",
-								},
-								{
-									Name:      "scripts",
-									MountPath: "/scripts",
-								},
-							},
-						},
-					},
-					Volumes: []corev1.Volume{
-						{
-							Name: "scripts",
-							VolumeSource: corev1.VolumeSource{
-								ConfigMap: &corev1.ConfigMapVolumeSource{
-									LocalObjectReference: corev1.LocalObjectReference{
-										Name: db.Name + "-init-script",
-									},
-									DefaultMode: &scriptMode,
-								},
-							},
-						},
-					},
+					Containers: []corev1.Container{container},
+					Volumes:    volumes,
 				},
 			},
 			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{

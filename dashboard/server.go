@@ -48,6 +48,7 @@ type EbpfParsedEvent struct {
 type ClusterStatus struct {
 	Healthy          bool           `json:"healthy"`
 	ClusterName      string         `json:"cluster_name"`
+	Engine           string         `json:"engine"`
 	PrimaryPod       string         `json:"primary_pod"`
 	Replicas         int            `json:"replicas"`
 	Pods             []PodInfo      `json:"pods"`
@@ -184,6 +185,7 @@ func pollClusterState() {
 	var dbCluster map[string]any
 	primaryPod := ""
 	replicas := 0
+	engine := "postgres"
 
 	for _, rawItem := range batchObj.Items {
 		var meta struct {
@@ -288,6 +290,9 @@ func pollClusterState() {
 				if r, ok := spec["replicas"].(float64); ok {
 					replicas = int(r)
 				}
+				if eng, ok := spec["engine"].(string); ok && eng != "" {
+					engine = eng
+				}
 			}
 		}
 	}
@@ -351,6 +356,7 @@ func pollClusterState() {
 	cachedState = ClusterStatus{
 		Healthy:          len(pods) > 0 && primaryPod != "",
 		ClusterName:      "sample-postgres",
+		Engine:           engine,
 		PrimaryPod:       primaryPod,
 		Replicas:         replicas,
 		Pods:             pods,
@@ -425,22 +431,42 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 
 	switch req.Action {
 	case "query_primary":
-		sql := req.Params["sql"]
-		if sql == "" {
-			sql = "SELECT current_database() AS db, inet_server_addr() AS ip, pg_is_in_recovery() AS is_replica, now() AS time;"
+		if cachedState.Engine == "redis" {
+			cmd := req.Params["sql"]
+			if cmd == "" {
+				cmd = "INFO replication"
+			}
+			cmd = strings.Trim(cmd, "\"' ")
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- redis-cli %s", curPrimary, cmd)
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-n", "demo-app", "--", "redis-cli", cmd)
+		} else {
+			sql := req.Params["sql"]
+			if sql == "" {
+				sql = "SELECT current_database() AS db, inet_server_addr() AS ip, pg_is_in_recovery() AS is_replica, now() AS time;"
+			}
+			sql = strings.Trim(sql, "\"' ")
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- psql -U postgres -d postgres -c \"%s\"", curPrimary, sql)
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-n", "demo-app", "--", "psql", "-U", "postgres", "-d", "postgres", "-c", sql)
 		}
-		sql = strings.Trim(sql, "\"' ")
-		cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- psql -U postgres -d postgres -c \"%s\"", curPrimary, sql)
-		out, err = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-n", "demo-app", "--", "psql", "-U", "postgres", "-d", "postgres", "-c", sql)
 
 	case "query_replica":
-		sql := req.Params["sql"]
-		if sql == "" {
-			sql = "SELECT current_database() AS db, inet_server_addr() AS ip, pg_is_in_recovery() AS is_replica, pg_last_wal_receive_lsn() AS wal_lsn;"
+		if cachedState.Engine == "redis" {
+			cmd := req.Params["sql"]
+			if cmd == "" {
+				cmd = "ROLE"
+			}
+			cmd = strings.Trim(cmd, "\"' ")
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- redis-cli %s", curReplica, cmd)
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", curReplica, "-n", "demo-app", "--", "redis-cli", cmd)
+		} else {
+			sql := req.Params["sql"]
+			if sql == "" {
+				sql = "SELECT current_database() AS db, inet_server_addr() AS ip, pg_is_in_recovery() AS is_replica, pg_last_wal_receive_lsn() AS wal_lsn;"
+			}
+			sql = strings.Trim(sql, "\"' ")
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- psql -U postgres -d postgres -c \"%s\"", curReplica, sql)
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", curReplica, "-n", "demo-app", "--", "psql", "-U", "postgres", "-d", "postgres", "-c", sql)
 		}
-		sql = strings.Trim(sql, "\"' ")
-		cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- psql -U postgres -d postgres -c \"%s\"", curReplica, sql)
-		out, err = execDirect(ctx, "kubectl", "exec", "-i", curReplica, "-n", "demo-app", "--", "psql", "-U", "postgres", "-d", "postgres", "-c", sql)
 
 	case "burst_traffic":
 		// Run 15 fast queries via a single connection - each SELECT hits the DB and causes a real TCP event
@@ -493,9 +519,14 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		if podName == "" {
 			podName = curPrimary
 		}
-		testSQL := "SELECT current_database() AS db, inet_server_addr() AS ip, pg_is_in_recovery() AS is_replica, now() AS time;"
-		cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- psql -U postgres -d postgres -c \"%s\"", podName, testSQL)
-		out, err = execDirect(ctx, "kubectl", "exec", "-i", podName, "-n", "demo-app", "--", "psql", "-U", "postgres", "-d", "postgres", "-c", testSQL)
+		if cachedState.Engine == "redis" {
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- redis-cli role", podName)
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", podName, "-n", "demo-app", "--", "redis-cli", "role")
+		} else {
+			testSQL := "SELECT current_database() AS db, inet_server_addr() AS ip, pg_is_in_recovery() AS is_replica, now() AS time;"
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- psql -U postgres -d postgres -c \"%s\"", podName, testSQL)
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", podName, "-n", "demo-app", "--", "psql", "-U", "postgres", "-d", "postgres", "-c", testSQL)
+		}
 
 	case "cleanup_test_pods":
 		cmdStr = "kubectl delete pod -n demo-app --field-selector=status.phase!=Running"

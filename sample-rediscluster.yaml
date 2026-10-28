@@ -1,0 +1,21 @@
+apiVersion: database.sidkubers.io/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: sample-redis
+  namespace: demo-app
+spec:
+  engine: "redis"
+  replicas: 3
+  version: "7"
+  storage: "5Gi"
+  credentialsSecretRef:
+    name: redis-credentials
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-credentials
+  namespace: demo-app
+type: Opaque
+stringData:
+  password: "supersecretredispassword"
