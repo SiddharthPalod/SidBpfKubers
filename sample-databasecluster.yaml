@@ -1,0 +1,13 @@
+apiVersion: database.sidkubers.io/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: sample-postgres
+  namespace: demo-app
+spec:
+  replicas: 2
+  version: "16"
+  storage: "5Gi"
+  replication:
+    mode: "sync"
+  credentialsSecretRef:
+    name: postgres-credentials

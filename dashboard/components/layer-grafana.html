@@ -1,0 +1,186 @@
+      <!-- ================= LAYER: GRAFANA & PROMETHEUS STACK ================= -->
+      <section id="layer-grafana-view" class="flex-1 flex flex-col bg-obsidian overflow-y-auto">
+        
+        <!-- Prometheus Live Telemetry Grid -->
+        <div class="p-4 border-b-sharp bg-obsidian/80 shrink-0">
+          <div class="flex items-center justify-between mb-2.5">
+            <div class="flex items-center gap-2">
+              <span class="mono text-xs font-bold uppercase tracking-wider text-white">Prometheus Live Telemetry Grid</span>
+              <span class="mono text-[10px] px-1.5 py-0.2 rounded bg-surface border border-surface-border text-slate-400">Scrape Rate: 2.0s</span>
+            </div>
+            <div class="flex items-center gap-3 text-[10px] mono text-slate-400">
+              <span class="flex items-center gap-1"><span class="h-2 w-2 rounded-sm bg-cyber-mint"></span> K8s Pods</span>
+              <span class="flex items-center gap-1"><span class="h-2 w-2 rounded-sm bg-cyber-emerald"></span> Kafka Pipeline</span>
+              <span class="flex items-center gap-1"><span class="h-2 w-2 rounded-sm bg-cyber-purple"></span> eBPF Sockets</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+
+            <!-- Metric 1: PG Connections -->
+            <div class="has-tooltip relative border-sharp bg-surface rounded p-2.5 hover:border-surface-border/80 transition">
+              <div class="text-[10px] mono text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                <span>PG Conns (5432)</span>
+                <span class="text-cyber-mint text-[9px]">● LIVE</span>
+              </div>
+              <div class="mt-1 flex items-baseline justify-between">
+                <span id="metric-pg-conns" class="mono text-lg font-bold text-white">2,520</span>
+                <span class="mono text-[10px] text-cyber-mint">↑ 8.2%</span>
+              </div>
+              <div class="h-7 w-full mt-1.5">
+                <svg class="w-full h-full" viewBox="0 0 100 28" preserveAspectRatio="none">
+                  <path d="M0,20 Q15,8 30,16 T60,10 T85,18 L100,6" fill="none" stroke="#00F5A0" stroke-width="1.75" vector-effect="non-scaling-stroke"></path>
+                  <path d="M0,20 Q15,8 30,16 T60,10 T85,18 L100,6 L100,28 L0,28 Z" fill="url(#grad-mint)" opacity="0.15"></path>
+                  <defs>
+                    <linearGradient id="grad-mint" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#00F5A0" />
+                      <stop offset="100%" stop-color="#00F5A0" stop-opacity="0" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+              <div class="tooltip-box absolute top-full left-0 mt-1 z-30 bg-surface-alt border-sharp p-2 rounded text-[10px] mono text-slate-300 w-44 shadow-xl">
+                <div>Total active client connections via <code class="text-cyber-emerald">sample-postgres-rw</code> service. Pool max: 100.</div>
+              </div>
+            </div>
+
+            <!-- Metric 2: CPU Throttling Rate -->
+            <div class="has-tooltip relative border-sharp bg-surface rounded p-2.5 hover:border-surface-border/80 transition">
+              <div class="text-[10px] mono text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                <span>CPU Throttle</span>
+                <span class="text-cyber-mint text-[9px]">0.02%</span>
+              </div>
+              <div class="mt-1 flex items-baseline justify-between">
+                <span id="metric-cpu-throttle" class="mono text-lg font-bold text-white">0.4 ms</span>
+                <span class="mono text-[10px] text-slate-500">Quota 1.0</span>
+              </div>
+              <div class="h-7 w-full mt-1.5">
+                <svg class="w-full h-full" viewBox="0 0 100 28" preserveAspectRatio="none">
+                  <path d="M0,24 Q25,22 50,25 T80,23 L100,24" fill="none" stroke="#10B981" stroke-width="1.75" vector-effect="non-scaling-stroke"></path>
+                </svg>
+              </div>
+              <div class="tooltip-box absolute top-full left-0 mt-1 z-30 bg-surface-alt border-sharp p-2 rounded text-[10px] mono text-slate-300 w-44 shadow-xl">
+                <div>Cgroups v2 throttling periods per scrape cycle across cluster pods.</div>
+              </div>
+            </div>
+
+            <!-- Metric 3: Total Kernel Sockets (eBPF) -->
+            <div class="has-tooltip relative border-sharp bg-surface rounded p-2.5 hover:border-surface-border/80 transition">
+              <div class="text-[10px] mono text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                <span>Kernel Sockets</span>
+                <span class="text-cyber-emerald text-[9px]">eBPF</span>
+              </div>
+              <div class="mt-1 flex items-baseline justify-between">
+                <span id="metric-total-sockets" class="mono text-lg font-bold text-white">7,415</span>
+                <span class="mono text-[10px] text-cyber-mint">ACTIVE</span>
+              </div>
+              <div class="h-7 w-full mt-1.5">
+                <svg class="w-full h-full" viewBox="0 0 100 28" preserveAspectRatio="none">
+                  <path id="spark-sockets" d="M0,25 L30,22 L50,18 L70,20 L100,16" fill="none" stroke="#10B981" stroke-width="1.75" vector-effect="non-scaling-stroke"></path>
+                </svg>
+              </div>
+              <div class="tooltip-box absolute top-full left-0 mt-1 z-30 bg-surface-alt border-sharp p-2 rounded text-[10px] mono text-slate-300 w-44 shadow-xl">
+                <div>Total active and tracked kernel TCP sockets via <code class="text-cyber-emerald">sock/inet_sock_set_state</code>.</div>
+              </div>
+            </div>
+
+            <!-- Metric 4: WAL Replication Lag -->
+            <div class="has-tooltip relative border-sharp bg-surface rounded p-2.5 hover:border-surface-border/80 transition">
+              <div class="text-[10px] mono text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                <span>WAL Sync Lag</span>
+                <span class="text-cyber-mint text-[9px]">0 bytes</span>
+              </div>
+              <div class="mt-1 flex items-baseline justify-between">
+                <span id="metric-wal-lag" class="mono text-lg font-bold text-white">&lt; 1 ms</span>
+                <span class="mono text-[10px] text-cyber-mint">STREAM</span>
+              </div>
+              <div class="h-7 w-full mt-1.5">
+                <svg class="w-full h-full" viewBox="0 0 100 28" preserveAspectRatio="none">
+                  <path d="M0,22 Q20,18 40,21 T75,19 L100,20" fill="none" stroke="#00F5A0" stroke-width="1.75" vector-effect="non-scaling-stroke"></path>
+                </svg>
+              </div>
+              <div class="tooltip-box absolute top-full left-0 mt-1 z-30 bg-surface-alt border-sharp p-2 rounded text-[10px] mono text-slate-300 w-44 shadow-xl">
+                <div>Difference between <code class="text-cyber-mint">pg_current_wal_lsn</code> and Standby replay LSN.</div>
+              </div>
+            </div>
+
+            <!-- Metric 5: eBPF Retransmits (Purple) -->
+            <div class="has-tooltip relative border-sharp bg-surface rounded p-2.5 hover:border-surface-border/80 transition">
+              <div class="text-[10px] mono text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                <span class="text-cyber-purple font-semibold">eBPF Retrans</span>
+                <span class="text-cyber-purple text-[9px]">KERNEL</span>
+              </div>
+              <div class="mt-1 flex items-baseline justify-between">
+                <span id="metric-retransmits-count" class="mono text-lg font-bold text-white">715</span>
+                <span class="mono text-[10px] text-cyber-mint">0.00%</span>
+              </div>
+              <div class="h-7 w-full mt-1.5">
+                <svg class="w-full h-full" viewBox="0 0 100 28" preserveAspectRatio="none">
+                  <path id="spark-retrans" d="M0,26 L60,26 L75,26 L90,26 L100,26" fill="none" stroke="#BF5AF2" stroke-width="1.75" vector-effect="non-scaling-stroke"></path>
+                </svg>
+              </div>
+              <div class="tooltip-box absolute top-full left-0 mt-1 z-30 bg-surface-alt border-sharp p-2 rounded text-[10px] mono text-slate-300 w-44 shadow-xl">
+                <div>eBPF tracepoint <code class="text-cyber-purple">tcp_retransmit_skb</code> kernel drops observed in real-time.</div>
+              </div>
+            </div>
+
+            <!-- Metric 6: Operator Reconcile Loop Duration -->
+            <div class="has-tooltip relative border-sharp bg-surface rounded p-2.5 hover:border-surface-border/80 transition">
+              <div class="text-[10px] mono text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                <span>Reconcile Loop</span>
+                <span class="text-slate-400 text-[9px]">GO-OP</span>
+              </div>
+              <div class="mt-1 flex items-baseline justify-between">
+                <span id="metric-reconcile-duration" class="mono text-lg font-bold text-white">12.4 ms</span>
+                <span class="mono text-[10px] text-cyber-mint">HEALTHY</span>
+              </div>
+              <div class="h-7 w-full mt-1.5">
+                <svg class="w-full h-full" viewBox="0 0 100 28" preserveAspectRatio="none">
+                  <path d="M0,20 Q20,10 40,20 T70,14 L100,18" fill="none" stroke="#FFFFFF" stroke-width="1.5" opacity="0.6" vector-effect="non-scaling-stroke"></path>
+                </svg>
+              </div>
+              <div class="tooltip-box absolute top-full left-0 mt-1 z-30 bg-surface-alt border-sharp p-2 rounded text-[10px] mono text-slate-300 w-44 shadow-xl">
+                <div>Average time per workqueue item execution in custom Kubernetes controller reconciler.</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Embedded Grafana Canvas Block -->
+        <div class="p-4 flex-1 flex flex-col min-h-[460px]">
+          <div class="flex items-center justify-between mb-2 shrink-0">
+            <div class="flex items-center gap-2">
+              <span class="mono text-xs font-bold uppercase tracking-wider text-white">Embedded Grafana Canvas Block</span>
+              <span class="text-[10px] mono px-1.5 py-0.2 rounded bg-surface border border-surface-border text-slate-400">Auto-Provisioned Dashboard</span>
+              <span id="grafana-indicator" class="flex items-center gap-1 text-[10px] mono px-2 py-0.2 rounded border border-cyber-mint/30 bg-cyber-mint/10 text-cyber-mint font-bold">
+                <span class="h-1.5 w-1.5 rounded-full bg-cyber-mint animate-led"></span> LIVE :3000
+              </span>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <a href="http://localhost:3000/d/sidkubers-platform" target="_blank" class="px-2.5 py-1 bg-surface-alt hover:bg-surface-hover border-sharp text-slate-300 hover:text-white text-xs mono rounded transition flex items-center gap-1">
+                <span>↗ Open Fullscreen</span>
+              </a>
+              <button onclick="reloadGrafana()" class="px-2 py-1 bg-surface-alt hover:bg-surface-hover border-sharp text-slate-300 text-xs mono rounded transition">
+                ↻
+              </button>
+            </div>
+          </div>
+
+          <!-- Sleek Iframe/Container -->
+          <div class="flex-1 border-sharp bg-surface rounded overflow-hidden relative flex flex-col min-h-[360px]">
+            <iframe id="grafana-frame" src="http://localhost:3000/d/sidkubers-platform?kiosk=tv" class="w-full h-full flex-1 border-0" onerror="handleGrafanaFrameError()"></iframe>
+            <div id="grafana-fallback" class="hidden absolute inset-0 bg-surface flex flex-col items-center justify-center p-6 text-center space-y-3">
+              <div class="h-10 w-10 rounded-full bg-cyber-amber/10 border border-cyber-amber/30 flex items-center justify-center text-cyber-amber font-mono font-bold text-lg">!</div>
+              <div class="mono text-sm font-bold text-white">Grafana Platform Dashboard</div>
+              <p class="text-xs text-slate-400 max-w-md mono">
+                Browser iframe embedding is protected by localhost security origin policies. Open the full dashboard view directly:
+              </p>
+              <a href="http://localhost:3000/d/sidkubers-platform" target="_blank" class="px-4 py-2 bg-cyber-emerald text-black font-mono font-bold text-xs rounded hover:bg-cyber-emerald/90 transition shadow-lg shadow-cyber-emerald/20 flex items-center gap-2">
+                <span>📊 Launch Grafana Dashboard (:3000) ↗</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>

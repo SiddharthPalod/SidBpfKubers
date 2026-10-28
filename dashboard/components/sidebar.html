@@ -1,0 +1,120 @@
+    <!-- LEFT SIDEBAR: Operator Mission Control & Reconciler Actions (260px fixed) -->
+    <aside class="w-64 border-r-sharp bg-surface/60 flex flex-col shrink-0 overflow-y-auto">
+      
+      <!-- Section Header -->
+      <div class="p-3 border-b-sharp bg-surface flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="mono text-[10px] font-bold text-slate-300 tracking-wider uppercase">Operator Cockpit</span>
+        </div>
+        <span class="text-[9px] mono px-1.5 py-0.5 rounded bg-obsidian text-cyber-mint border border-cyber-mint/30 font-bold flex items-center gap-1">
+          <span class="h-1.5 w-1.5 rounded-full bg-cyber-mint animate-led"></span> RECONCILER
+        </span>
+      </div>
+
+      <!-- Main Sidebar Content -->
+      <div class="p-2 space-y-3 flex-1 overflow-y-auto">
+
+        <!-- Panel 1: Primary Operator Controls (Elevated to top for high utility) -->
+        <div class="border-sharp bg-obsidian rounded p-2.5 space-y-2">
+          <div class="flex items-center justify-between border-b-sharp pb-1.5">
+            <span class="mono text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+              <span class="h-1.5 w-1.5 rounded-full bg-cyber-mint"></span> Reconciler Controls
+            </span>
+            <span class="text-[9px] mono px-1 py-0.2 rounded bg-surface border-sharp text-cyber-mint font-semibold">IDLE</span>
+          </div>
+
+          <div class="grid grid-cols-1 gap-1.5 text-xs mono">
+            <!-- Planned Switchover -->
+            <button onclick="triggerSwitchover()" class="w-full py-2 px-2.5 bg-surface hover:bg-surface-hover border-sharp text-cyber-emerald hover:text-white rounded text-[11px] font-semibold text-left flex items-center justify-between transition group shadow-sm">
+              <span class="flex items-center gap-1.5">
+                <span>👑</span> Planned Switchover
+              </span>
+              <span class="text-[9px] text-slate-500 group-hover:text-cyber-emerald font-mono">Zero-Downtime</span>
+            </button>
+
+            <!-- Backup Trigger -->
+            <button onclick="triggerBackup()" class="w-full py-2 px-2.5 bg-surface hover:bg-surface-hover border-sharp text-slate-200 hover:text-white rounded text-[11px] font-semibold text-left flex items-center justify-between transition group shadow-sm">
+              <span class="flex items-center gap-1.5">
+                <span>💾</span> Trigger Backup Job
+              </span>
+              <span class="text-[9px] text-slate-500 group-hover:text-slate-300 font-mono">PVC Dump</span>
+            </button>
+
+            <!-- Restore Trigger -->
+            <button onclick="triggerRestore()" class="w-full py-2 px-2.5 bg-surface hover:bg-surface-hover border-sharp text-slate-200 hover:text-white rounded text-[11px] font-semibold text-left flex items-center justify-between transition group shadow-sm">
+              <span class="flex items-center gap-1.5">
+                <span>🔄</span> Launch Restore Job
+              </span>
+              <span class="text-[9px] text-slate-500 group-hover:text-slate-300 font-mono">Reconcile</span>
+            </button>
+
+            <!-- Network Chaos Injection -->
+            <button onclick="triggerNetworkChaos()" class="w-full py-2 px-2.5 bg-surface hover:bg-surface-hover border-sharp text-cyber-purple hover:text-white rounded text-[11px] font-semibold text-left flex items-center justify-between transition group shadow-sm">
+              <span class="flex items-center gap-1.5">
+                <span>📡</span> Inject TCP Chaos
+              </span>
+              <span class="text-[9px] text-cyber-purple/80 group-hover:text-cyber-purple font-mono">eBPF Trip</span>
+            </button>
+
+            <!-- Sync Reconciler -->
+            <button onclick="triggerSync()" class="w-full py-2 px-2.5 bg-surface hover:bg-surface-hover border-sharp text-slate-400 hover:text-white rounded text-[11px] font-semibold text-left flex items-center justify-between transition group shadow-sm">
+              <span class="flex items-center gap-1.5">
+                <span>⚡</span> Force Re-Sync
+              </span>
+              <span class="text-[9px] text-slate-500 font-mono">Poll K8s</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Panel 2: Declarative CRD Specification & Cluster Status -->
+        <div class="border-sharp bg-obsidian rounded p-2.5 space-y-2">
+          <div class="flex items-center justify-between border-b-sharp pb-1.5">
+            <div class="flex items-center gap-2">
+              <span class="h-2 w-2 rounded-full bg-cyber-mint animate-led"></span>
+              <span class="mono text-xs font-bold text-white tracking-wide">DatabaseCluster</span>
+            </div>
+            <span class="text-[9px] mono px-1.5 py-0.2 rounded bg-cyber-emerald/10 text-cyber-emerald border border-cyber-emerald/30 font-semibold">PG-16</span>
+          </div>
+
+          <div class="text-[10px] mono text-slate-400 space-y-1.5 pt-0.5">
+            <div class="flex items-center justify-between">
+              <span>CR Name:</span>
+              <strong class="text-slate-200">sample-postgres</strong>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>Namespace:</span>
+              <span class="text-slate-300 bg-surface px-1.5 py-0.2 rounded border border-surface-border">demo-app</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>Replicas:</span>
+              <span id="tree-pg-replicas" class="text-cyber-mint font-semibold">3 / 3 Ready</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>Storage Quota:</span>
+              <span class="text-slate-300">5Gi (Dynamic PVC)</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>Replication Mode:</span>
+              <span class="text-cyber-emerald font-semibold">Sync (Zero Lag)</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>Operator Pods:</span>
+              <span id="sidebar-operator-status" class="text-slate-200 font-semibold">2 / 2 Active HA</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>CRD Group:</span>
+              <span class="text-slate-500 text-[9px] truncate">database.sidkubers.io</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer Info -->
+      <div class="p-2.5 border-t-sharp bg-obsidian text-[10px] mono text-slate-500 flex items-center justify-between shrink-0">
+        <span>Context: <strong class="text-slate-400">docker-desktop</strong></span>
+        <span class="flex items-center gap-1 text-cyber-mint">
+          <span class="h-1.5 w-1.5 rounded-full bg-cyber-mint"></span> LIVE
+        </span>
+      </div>
+    </aside>

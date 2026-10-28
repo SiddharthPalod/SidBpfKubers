@@ -1,0 +1,113 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: databaseclusters.database.sidkubers.io
+spec:
+  group: database.sidkubers.io
+  names:
+    kind: DatabaseCluster
+    plural: databaseclusters
+    singular: databasecluster
+    shortNames:
+    - db
+    - dbc
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    subresources:
+      status: {}
+    additionalPrinterColumns:
+    - name: Replicas
+      type: integer
+      jsonPath: .spec.replicas
+    - name: Ready
+      type: integer
+      jsonPath: .status.readyReplicas
+    - name: Phase
+      type: string
+      jsonPath: .status.phase
+    - name: Primary
+      type: string
+      jsonPath: .status.primary
+    - name: Age
+      type: date
+      jsonPath: .metadata.creationTimestamp
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            required:
+            - credentialsSecretRef
+            properties:
+              replicas:
+                type: integer
+                minimum: 1
+                maximum: 9
+                default: 1
+              version:
+                type: string
+                enum:
+                - "15"
+                - "16"
+                - "17"
+                default: "16"
+              storage:
+                type: string
+                pattern: '^[0-9]+(Gi|Mi)$'
+                default: "10Gi"
+              storageClassName:
+                type: string
+              replication:
+                type: object
+                properties:
+                  mode:
+                    type: string
+                    enum:
+                    - async
+                    - sync
+                    default: async
+              credentialsSecretRef:
+                type: object
+                required:
+                - name
+                properties:
+                  name:
+                    type: string
+          status:
+            type: object
+            properties:
+              phase:
+                type: string
+                enum:
+                - Creating
+                - Running
+                - Degraded
+                - Failed
+              readyReplicas:
+                type: integer
+              primary:
+                type: string
+              conditions:
+                type: array
+                items:
+                  type: object
+                  required:
+                  - type
+                  - status
+                  properties:
+                    type:
+                      type: string
+                    status:
+                      type: string
+                      enum: ["True", "False", "Unknown"]
+                    lastTransitionTime:
+                      type: string
+                      format: date-time
+                    reason:
+                      type: string
+                    message:
+                      type: string

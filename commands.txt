@@ -1,0 +1,51 @@
+# Run Custom go operator
+docker build -t database-operator:latest .
+kubectl apply -f deploy/operator.yaml
+kubectl rollout restart deployment/database-operator -n sidkubers-system
+
+# Switch to Docker Desktop context
+kubectl config use-context docker-desktop
+
+# --- StatefulSet Testing ---
+kubectl apply -f all-in-one-stateful.yaml
+kubectl get statefulset,pods,pvc,svc -n demo-app
+
+# Clean up StatefulSet
+kubectl delete -f all-in-one-stateful.yaml
+
+# --- CRD & Custom Resource Testing ---
+kubectl apply -f crd-databasecluster.yaml
+kubectl get crd databaseclusters.database.sidkubers.io
+
+# 2. Apply a sample DatabaseCluster instance
+kubectl apply -f sample-databasecluster.yaml
+kubectl get databaseclusters -n demo-app
+kubectl get db -n demo-app -o yaml
+
+# 3. Clean up
+kubectl delete -f sample-databasecluster.yaml
+kubectl delete -f crd-databasecluster.yaml
+
+# EBPF C to Go conversion command
+go:generate go run github.com/cilium/ebpf/cmd/bpf2go tcpMonitor bpf/tcp_monitor.c
+
+# --- Phase 5: Monitoring Stack (Prometheus + Grafana) ---
+kubectl apply -f monitoring/ebpf-service.yaml
+kubectl apply -f monitoring/prometheus.yaml
+kubectl apply -f monitoring/grafana.yaml
+
+# Check monitoring stack status
+kubectl get pods,svc -n sidkubers-system
+
+# Port forward Grafana to localhost:3000
+kubectl port-forward -n sidkubers-system svc/grafana 3000:3000
+
+# Port forward Prometheus (optional)
+kubectl port-forward -n sidkubers-system svc/prometheus 9091:9090
+
+# --- Phase 6: SidKubers Mission Control Server ---
+# Start the Mission Control Web UI on http://localhost:8085
+cd dashboard
+.\dashboard.exe
+# OR: go run server.go
+

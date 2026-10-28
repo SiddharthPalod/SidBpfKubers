@@ -1,0 +1,73 @@
+  <!-- ================= TOP HEADER (Command Bar) ================= -->
+  <header class="h-auto sm:h-14 border-b-sharp bg-surface/90 backdrop-blur sticky top-0 z-50 px-3 sm:px-4 py-2 sm:py-0 flex flex-wrap items-center justify-between gap-2 shrink-0">
+    <!-- Brand & Cluster Status -->
+    <div class="flex items-center gap-3">
+      <div class="h-8 w-8 rounded bg-gradient-to-br from-cyber-mint/20 via-surface to-cyber-purple/20 border border-cyber-mint/40 flex items-center justify-center font-mono font-bold text-cyber-mint text-[11px]">
+        SBK
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-mono font-bold text-xs tracking-wider uppercase text-white">SidBpfKubers</span>
+          <span class="flex items-center gap-1.5 text-[10px] mono px-2 py-0.5 rounded border border-cyber-mint/30 bg-cyber-mint/5 text-cyber-mint">
+            <span class="h-1.5 w-1.5 rounded-full bg-cyber-mint animate-led"></span>
+            <span class="hidden xs:inline">CLUSTER</span> ONLINE
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Telemetry Cards -->
+    <div class="flex items-center gap-1.5 sm:gap-2 text-xs mono order-3 sm:order-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+      <!-- Operator Card -->
+      <div class="flex items-center gap-1.5 bg-obsidian border-sharp px-2 py-1 rounded shrink-0">
+        <span class="text-[9px] text-slate-500 uppercase">OPERATOR</span>
+        <span id="header-operator-status" class="text-cyber-mint font-bold text-[11px] flex items-center gap-1">
+          <span class="h-1.5 w-1.5 rounded-full bg-cyber-mint"></span> 2/2
+        </span>
+      </div>
+
+      <!-- CRD Card -->
+      <div class="flex items-center gap-1.5 bg-obsidian border-sharp px-2 py-1 rounded shrink-0">
+        <span class="text-[9px] text-slate-500 uppercase">CRD</span>
+        <span id="header-crds-count" class="text-cyber-emerald font-bold text-[11px]">1</span>
+      </div>
+
+      <!-- eBPF Probes Card -->
+      <div class="flex items-center gap-1.5 bg-obsidian border-sharp px-2 py-1 rounded shrink-0">
+        <span class="text-[9px] text-slate-500 uppercase">eBPF</span>
+        <span id="header-ebpf-probes" class="text-cyber-purple font-bold text-[11px] flex items-center gap-1">
+          <span class="h-1.5 w-1.5 rounded-full bg-cyber-purple animate-led"></span> 1/1
+        </span>
+      </div>
+
+      <!-- Retransmits Card -->
+      <div class="flex items-center gap-1.5 bg-obsidian border-sharp px-2 py-1 rounded shrink-0">
+        <span class="text-[9px] text-slate-500 uppercase">RETRANS</span>
+        <span id="header-retransmits" class="text-slate-300 font-bold text-[11px]">715</span>
+      </div>
+    </div>
+
+    <!-- Right Controls: 3 Navigation Toggles & CLI Console -->
+    <div class="flex items-center gap-1.5 sm:gap-2 order-2 sm:order-3">
+      <!-- Layer Filter Toggles -->
+      <div class="flex items-center bg-obsidian border-sharp rounded p-0.5 text-xs mono">
+        <button id="toggle-layer-k8s" onclick="toggleLayer('k8s')" class="px-2.5 py-1 rounded text-[11px] font-bold bg-surface text-white border-sharp">K8s</button>
+        <button id="toggle-layer-ebpf" onclick="toggleLayer('ebpf')" class="px-2.5 py-1 rounded text-[11px] font-medium text-slate-400 hover:text-white transition flex items-center gap-1">
+          <span class="h-1.5 w-1.5 rounded-full bg-cyber-purple"></span> Kernel
+        </button>
+        <button id="toggle-layer-grafana" onclick="toggleLayer('grafana')" class="px-2.5 py-1 rounded text-[11px] font-medium text-slate-400 hover:text-white transition">Grafana</button>
+      </div>
+
+      <!-- Sync Button -->
+      <button onclick="triggerSync()" class="h-7 px-2 bg-surface-alt hover:bg-surface-hover border-sharp text-slate-300 hover:text-white text-xs mono rounded flex items-center gap-1 transition">
+        <span id="sync-spinner" class="text-[12px]">⟳</span>
+      </button>
+
+      <!-- Slide-over Terminal Toggle -->
+      <button onclick="toggleTerminalDrawer()" class="h-7 px-2.5 bg-surface-alt hover:bg-surface-hover border-sharp text-cyber-emerald hover:text-white text-xs mono rounded flex items-center gap-1.5 transition">
+        <span>$</span>
+        <span class="hidden md:inline">CLI</span>
+        <span id="term-badge" class="h-1.5 w-1.5 rounded-full bg-cyber-mint"></span>
+      </button>
+    </div>
+  </header>

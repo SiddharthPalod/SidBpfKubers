@@ -1,0 +1,75 @@
+      <!-- ================= LAYER: eBPF LIVE KERNEL TELEMETRY FEED ================= -->
+      <section id="layer-ebpf-view" class="p-4 bg-obsidian flex-1 flex flex-col">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2.5">
+            <span class="h-2 w-2 rounded-full bg-cyber-purple animate-led"></span>
+            <span class="mono text-xs font-bold uppercase tracking-wider text-cyber-purple">eBPF Live Kernel Telemetry Feed</span>
+            <span class="mono text-[10px] px-1.5 py-0.2 rounded bg-cyber-purple/10 border border-cyber-purple/30 text-cyber-purple font-medium hidden sm:inline">sock/inet_sock_set_state & tcp/tcp_retransmit_skb</span>
+          </div>
+          <div class="flex items-center gap-3 text-[10px] mono text-slate-400">
+            <span>Buffer: <strong class="text-white">64 KB RingBuffer</strong></span>
+            <span>Rate: <strong class="text-cyber-mint">1.0s ease</strong></span>
+          </div>
+        </div>
+
+        <!-- Scrolling Waterfall Table of Kernel Socket Events -->
+        <div class="border-sharp bg-surface rounded overflow-hidden flex-1 flex flex-col">
+          <div class="h-8 bg-surface-alt border-b-sharp px-3 flex items-center justify-between text-[10px] mono text-slate-400 uppercase font-semibold shrink-0">
+            <div class="w-20">Timestamp</div>
+            <div class="w-28">Kernel Probe</div>
+            <div class="w-32">Source Socket</div>
+            <div class="w-32">Dest Socket</div>
+            <div class="w-24">Protocol</div>
+            <div class="w-24">Socket Life</div>
+            <div class="w-32 text-right">Target K8s Pod</div>
+          </div>
+
+          <!-- Dynamic Waterfall Rows Container -->
+          <div id="ebpf-waterfall-rows" class="divide-y divide-surface-border text-xs mono flex-1 overflow-y-auto">
+            <div class="px-3 py-1.5 flex items-center justify-between hover:bg-surface-alt/70 transition text-xs mono">
+              <div class="w-20 text-slate-500 text-[11px] truncate">20:07:28.303</div>
+              <div class="w-28 text-cyber-purple font-semibold flex items-center gap-1.5 truncate">
+                <span class="h-1.5 w-1.5 rounded-full bg-cyber-purple animate-led shrink-0"></span> <span class="truncate">inet_sock_set_state</span>
+              </div>
+              <div class="w-32 text-slate-300 truncate">127.0.0.1:45892</div>
+              <div class="w-32 text-cyber-emerald font-semibold truncate">127.0.0.1:5432</div>
+              <div class="w-24"><span class="px-1.5 py-0.2 rounded bg-cyber-emerald/15 text-cyber-emerald text-[10px] font-bold">PGSQL</span></div>
+              <div class="w-24 text-slate-400 text-[11px]">1.60 ms</div>
+              <div class="w-32 text-right text-slate-200 font-medium truncate">sample-postgres-0</div>
+            </div>
+            <div class="px-3 py-1.5 flex items-center justify-between bg-red-950/20 transition text-xs mono">
+              <div class="w-20 text-slate-500 text-[11px] truncate">20:07:28.000</div>
+              <div class="w-28 text-red-400 font-semibold flex items-center gap-1.5 truncate">
+                <span class="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse shrink-0"></span> <span class="truncate">tcp_retransmit_skb</span>
+              </div>
+              <div class="w-32 text-slate-300 truncate">127.0.0.1:45892</div>
+              <div class="w-32 text-cyber-emerald font-semibold truncate">127.0.0.1:5432</div>
+              <div class="w-24"><span class="px-1.5 py-0.2 rounded bg-red-950/40 text-red-400 border border-red-800/40 text-[10px] font-bold">RETRANSMIT</span></div>
+              <div class="w-24 text-slate-400 text-[11px]">0.60 ms</div>
+              <div class="w-32 text-right text-red-400 font-bold truncate">sample-postgres-0 [CHAOS]</div>
+            </div>
+            <div class="px-3 py-1.5 flex items-center justify-between hover:bg-surface-alt/70 transition text-xs mono">
+              <div class="w-20 text-slate-500 text-[11px] truncate">20:07:27.931</div>
+              <div class="w-28 text-cyber-purple font-semibold flex items-center gap-1.5 truncate">
+                <span class="h-1.5 w-1.5 rounded-full bg-cyber-purple animate-led shrink-0"></span> <span class="truncate">inet_sock_set_state</span>
+              </div>
+              <div class="w-32 text-slate-300 truncate">127.0.0.1:36472</div>
+              <div class="w-32 text-cyber-emerald font-semibold truncate">127.0.0.1:8080</div>
+              <div class="w-24"><span class="px-1.5 py-0.2 rounded bg-cyber-emerald/15 text-cyber-emerald text-[10px] font-bold">OPERATOR</span></div>
+              <div class="w-24 text-slate-400 text-[11px]">1.40 ms</div>
+              <div class="w-32 text-right text-slate-200 font-medium truncate">database-operator</div>
+            </div>
+            <div class="px-3 py-1.5 flex items-center justify-between hover:bg-surface-alt/70 transition text-xs mono">
+              <div class="w-20 text-slate-500 text-[11px] truncate">20:07:26.583</div>
+              <div class="w-28 text-cyber-purple font-semibold flex items-center gap-1.5 truncate">
+                <span class="h-1.5 w-1.5 rounded-full bg-cyber-purple animate-led shrink-0"></span> <span class="truncate">inet_sock_set_state</span>
+              </div>
+              <div class="w-32 text-slate-300 truncate">127.0.0.1:56520</div>
+              <div class="w-32 text-cyber-emerald font-semibold truncate">127.0.0.1:3000</div>
+              <div class="w-24"><span class="px-1.5 py-0.2 rounded bg-cyber-emerald/15 text-cyber-emerald text-[10px] font-bold">GRAFANA</span></div>
+              <div class="w-24 text-slate-400 text-[11px]">1.50 ms</div>
+              <div class="w-32 text-right text-slate-200 font-medium truncate">grafana</div>
+            </div>
+          </div>
+        </div>
+      </section>

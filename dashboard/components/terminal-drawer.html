@@ -1,0 +1,35 @@
+  <!-- ================= RIGHT SLIDE-OVER TERMINAL PANEL (Enterprise CLI Console) ================= -->
+  <div id="terminal-drawer" class="fixed top-14 right-0 bottom-0 w-full sm:w-[480px] bg-obsidian border-l-sharp z-50 flex flex-col transform translate-x-full transition-transform duration-300 ease-in-out shadow-2xl">
+    
+    <!-- Drawer Header -->
+    <div class="h-11 px-4 border-b-sharp bg-surface flex items-center justify-between shrink-0">
+      <div class="flex items-center gap-2">
+        <span class="mono text-xs font-bold text-white flex items-center gap-1.5">
+          <span class="text-cyber-mint">$</span> Live Command Runner
+        </span>
+        <span class="text-[10px] mono px-1.5 py-0.2 rounded bg-obsidian text-slate-400 border-sharp">kubectl direct</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="clearTerminalLogs()" class="text-[10px] mono text-slate-400 hover:text-white px-2 py-0.5 rounded bg-surface-alt border-sharp transition">Clear</button>
+        <button onclick="toggleTerminalDrawer()" class="text-slate-400 hover:text-white font-mono text-base px-1.5 transition">✕</button>
+      </div>
+    </div>
+
+    <!-- Output Feed -->
+    <div id="terminal-logs" class="flex-1 p-3 mono text-[11px] space-y-3 overflow-y-auto leading-relaxed bg-[#091413]">
+      <div class="text-slate-500 italic border-b border-surface-border pb-2">
+        // SidBpfKubers High-Density Operator CLI initialized.<br>
+        // Direct kernel and Kubernetes execution ready.
+      </div>
+    </div>
+
+    <!-- Terminal Prompt Input -->
+    <div class="p-2.5 border-t-sharp bg-surface shrink-0 flex items-center gap-2">
+      <span class="mono text-xs font-bold text-cyber-mint">$ kubectl</span>
+      <input id="terminal-input" type="text" placeholder="get pods -n demo-app -o wide" onkeydown="if(event.key==='Enter')executeRawCommand()" class="flex-1 bg-obsidian border-sharp rounded px-2.5 py-1.5 text-xs mono text-white focus:outline-none focus:border-cyber-emerald transition">
+      <button onclick="executeRawCommand()" class="px-3 py-1.5 bg-cyber-mint text-black font-mono font-bold text-xs rounded hover:bg-cyber-mint/90 transition">
+        Run
+      </button>
+    </div>
+
+  </div>

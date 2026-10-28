@@ -1,0 +1,65 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+
+# Test binary, built with 'go test -c'
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.txt
+
+# eBPF bytecode objects
+*.bpf.o
+*.o
+
+# Architecture / OS specific binaries
+dashboard/dashboard.exe
+ebpf-agent/ebpf-agent.exe
+
+# Go workspace file
+go.work
+
+# Dependencies and vendor directories
+vendor/
+
+# Local Environment and Secrets
+*.env
+.env.*
+*.kubeconfig
+kubeconfig*
+*.pem
+*.key
+*.crt
+
+# Editor & IDE configs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Operating System files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Backup and Temporary files
+*.bak
+*.tmp
+*.log
+*.tar.gz
+*.sum
+*.zip
+*.html.bak
+
+# Random files in the project directory
+all-in-one-nginx.yaml
+all-in-one-stateful.yaml
+Rules.md
+Phase.md

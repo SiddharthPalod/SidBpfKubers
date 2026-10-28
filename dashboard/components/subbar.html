@@ -1,0 +1,34 @@
+  <!-- ================= SUB-BAR (Telemetry & Navigation Strip) ================= -->
+  <div class="h-8 border-b-sharp bg-obsidian px-4 flex items-center justify-between text-[11px] mono text-slate-400 shrink-0">
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-1.5">
+        <span class="text-slate-600">NAMESPACE:</span>
+        <span class="text-slate-200 bg-surface px-1.5 py-0.2 rounded border border-surface-border">demo-app</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <span class="text-slate-600">STATE:</span>
+        <span id="sub-cluster-state" class="text-cyber-mint flex items-center gap-1 font-semibold">
+          <span class="h-1.5 w-1.5 rounded-full bg-cyber-mint"></span> SYNCED
+        </span>
+      </div>
+      <div class="flex items-center gap-1.5 hidden md:flex">
+        <span class="text-slate-600">PRIMARY NODE:</span>
+        <span id="sub-primary-node" class="text-cyber-emerald font-semibold">sample-postgres-0</span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2">
+        <span class="text-slate-600">SOCKETS:</span>
+        <span id="sub-socket-count" class="text-slate-300 font-bold">9,245</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-slate-600">LATENCY:</span>
+        <span id="sub-cluster-latency" class="text-cyber-mint font-semibold">0.42 ms</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <span class="h-2 w-2 rounded-full bg-cyber-mint animate-led"></span>
+        <span id="clock" class="text-slate-300">00:00:00 UTC</span>
+      </div>
+    </div>
+  </div>

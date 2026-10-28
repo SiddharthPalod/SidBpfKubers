@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SidBpfKubers // Enterprise Platform Mission Control</title>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Isolated Tailwind Theme Configuration -->
+  <script src="/static/js/tailwind-config.js?v=5"></script>
+  <!-- Isolated External CSS -->
+  <link rel="stylesheet" href="/static/css/style.css?v=5">
+</head>
+<body class="min-h-screen flex flex-col bg-obsidian text-slate-200 antialiased selection:bg-cyber-mint selection:text-black">
+
+  <!-- Component 1: Top Navigation Bar -->
+  <div id="component-header"><!-- Injected via ComponentLoader --></div>
+
+  <!-- Component 2: Telemetry Sub-Bar -->
+  <div id="component-subbar"><!-- Injected via ComponentLoader --></div>
+
+  <!-- ================= MAIN LAYOUT ================= -->
+  <div class="flex-1 flex overflow-hidden">
+
+    <!-- Component 3: Left Sidebar (CRD Operator Tree & Actions) -->
+    <div id="component-sidebar" class="flex shrink-0"><!-- Injected via ComponentLoader --></div>
+
+    <!-- Center Content Layers (Controlled by App.setLayer) -->
+    <main class="flex-1 flex flex-col overflow-y-auto">
+      <!-- Component 4: K8s Topography Layer -->
+      <div id="component-layer-k8s" class="flex-1 flex flex-col"><!-- Injected via ComponentLoader --></div>
+
+      <!-- Component 5: Kernel eBPF Telemetry Waterfall Layer -->
+      <div id="component-layer-kernel" class="flex-1 flex flex-col hidden"><!-- Injected via ComponentLoader --></div>
+
+      <!-- Component 6: Grafana & Prometheus Stack Layer -->
+      <div id="component-layer-grafana" class="flex-1 flex flex-col hidden overflow-y-auto"><!-- Injected via ComponentLoader --></div>
+    </main>
+
+  </div>
+
+  <!-- Component 7: Right Slide-Over Terminal Console -->
+  <div id="component-terminal"><!-- Injected via ComponentLoader --></div>
+
+  <!-- Component 8: Live HUD Action Toast Notification Stack -->
+  <div id="hud-toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm sm:max-w-md w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- ================= MODULAR JAVASCRIPT ARCHITECTURE ================= -->
+  <!-- Component Loader -->
+  <script src="/static/js/component-loader.js?v=5"></script>
+  <!-- 1. API Client Layer -->
+  <script src="/static/js/api.js?v=5"></script>
+  <!-- 2. Terminal Console Component -->
+  <script src="/static/js/terminal.js?v=5"></script>
+  <!-- 3. eBPF Telemetry Waterfall Component -->
+  <script src="/static/js/ebpf-stream.js?v=5"></script>
+  <!-- 4. Core UI & Reconciler Orchestrator -->
+  <script src="/static/js/app.js?v=5"></script>
+</body>
+</html>

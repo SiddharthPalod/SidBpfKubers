@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: ebpf-agent
+  namespace: sidkubers-system
+  labels:
+    app: ebpf-agent
+spec:
+  selector:
+    matchLabels:
+      app: ebpf-agent
+  template:
+    metadata:
+      labels:
+        app: ebpf-agent
+    spec:
+      hostNetwork: true
+      hostPID: true
+      containers:
+      - name: ebpf-agent
+        image: ebpf-agent:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true
+        ports:
+        - containerPort: 9090
+          name: metrics
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        volumeMounts:
+        - name: sys-kernel-debug
+          mountPath: /sys/kernel/debug
+          readOnly: false
+        - name: bpf-fs
+          mountPath: /sys/fs/bpf
+          readOnly: false
+      volumes:
+      - name: sys-kernel-debug
+        hostPath:
+          path: /sys/kernel/debug
+      - name: bpf-fs
+        hostPath:
+          path: /sys/fs/bpf
