@@ -1,15 +1,24 @@
       <!-- ================= LAYER: K8S TOPOGRAPHY VIEW ================= -->
       <section id="layer-k8s-view" class="p-4 bg-surface/30 flex-1">
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center gap-2">
-            <span class="mono text-xs font-bold uppercase tracking-wider text-white">Database Cluster Topography</span>
-            <span class="mono text-[10px] px-1.5 py-0.2 rounded bg-surface border border-surface-border text-cyber-mint">CR: sample-postgres</span>
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div class="flex items-center gap-2.5">
+            <span class="mono text-xs font-bold uppercase tracking-wider text-white">Topography</span>
+            <!-- Engine & Cluster Selector Tabs -->
+            <div id="cluster-selector-group" class="flex items-center bg-obsidian border-sharp rounded p-0.5 text-xs mono">
+              <button id="btn-cluster-postgres" onclick="App.selectCluster('sample-postgres')" class="px-2.5 py-1 rounded text-[11px] font-bold bg-surface text-white border-sharp flex items-center gap-1.5 transition">
+                <span>🐘</span> PostgreSQL <span id="badge-postgres-status" class="text-[9px] px-1 py-0.2 rounded bg-cyber-emerald/15 text-cyber-emerald font-semibold">3/3</span>
+              </button>
+              <button id="btn-cluster-redis" onclick="App.selectCluster('sample-redis')" class="px-2.5 py-1 rounded text-[11px] font-medium text-slate-400 hover:text-white flex items-center gap-1.5 transition">
+                <span>⚡</span> Redis <span id="badge-redis-status" class="text-[9px] px-1 py-0.2 rounded bg-cyber-mint/15 text-cyber-mint font-semibold">3/3</span>
+              </button>
+            </div>
+            <span id="k8s-cluster-badge" class="mono text-[10px] px-1.5 py-0.2 rounded bg-surface border border-surface-border text-cyber-mint">CR: sample-postgres</span>
             <span class="mono text-[10px] text-slate-500 hidden sm:inline">Namespace: demo-app</span>
           </div>
 
           <div class="flex items-center gap-2">
             <button onclick="runBurstQueries()" class="px-2.5 py-1 bg-cyber-emerald/10 hover:bg-cyber-emerald/20 text-cyber-emerald border border-cyber-emerald/30 text-xs mono rounded font-semibold transition flex items-center gap-1.5">
-              <span>⚡ Flood 10 Queries</span>
+              <span>⚡ Flood Queries</span>
             </button>
             <button onclick="triggerSwitchover()" class="px-2.5 py-1 bg-cyber-mint/10 hover:bg-cyber-mint/20 text-cyber-mint border border-cyber-mint/30 text-xs mono rounded font-semibold transition flex items-center gap-1.5">
               <span>👑 Planned Switchover</span>
@@ -30,7 +39,7 @@
             <!-- Service Card -rw (Write Primary) -->
             <div class="border-sharp bg-surface rounded p-2 text-xs mono space-y-1">
               <div class="flex items-center justify-between">
-                <span class="font-bold text-cyber-emerald flex items-center gap-1.5">
+                <span id="svc-rw-name" class="font-bold text-cyber-emerald flex items-center gap-1.5">
                   <span class="h-1.5 w-1.5 rounded-full bg-cyber-emerald"></span> sample-postgres-rw
                 </span>
                 <span class="text-[9px] px-1.5 py-0.2 rounded bg-cyber-emerald/15 text-cyber-emerald border border-cyber-emerald/30 font-bold">WRITE</span>
@@ -44,7 +53,7 @@
             <!-- Service Card -ro (Read Standby) -->
             <div class="border-sharp bg-surface rounded p-2 text-xs mono space-y-1">
               <div class="flex items-center justify-between">
-                <span class="font-bold text-cyber-mint flex items-center gap-1.5">
+                <span id="svc-ro-name" class="font-bold text-cyber-mint flex items-center gap-1.5">
                   <span class="h-1.5 w-1.5 rounded-full bg-cyber-mint"></span> sample-postgres-ro
                 </span>
                 <span class="text-[9px] px-1.5 py-0.2 rounded bg-cyber-mint/15 text-cyber-mint border border-cyber-mint/30 font-bold">READ ONLY</span>
@@ -58,7 +67,7 @@
             <!-- Service Card -r (All Pools) -->
             <div class="border-sharp bg-surface rounded p-2 text-xs mono space-y-1">
               <div class="flex items-center justify-between">
-                <span class="font-bold text-slate-300 flex items-center gap-1.5">
+                <span id="svc-r-name" class="font-bold text-slate-300 flex items-center gap-1.5">
                   <span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span> sample-postgres-r
                 </span>
                 <span class="text-[9px] px-1.5 py-0.2 rounded bg-surface-alt text-slate-300 border-sharp font-bold">POOL</span>
@@ -72,7 +81,7 @@
             <!-- Service Card -headless -->
             <div class="border-sharp bg-surface rounded p-2 text-xs mono space-y-1">
               <div class="flex items-center justify-between">
-                <span class="font-bold text-slate-400 flex items-center gap-1.5">
+                <span id="svc-headless-name" class="font-bold text-slate-400 flex items-center gap-1.5">
                   <span class="h-1.5 w-1.5 rounded-full bg-slate-500"></span> sample-postgres-headless
                 </span>
                 <span class="text-[9px] px-1.5 py-0.2 rounded bg-surface-alt text-slate-400 border-sharp font-bold">DNS</span>
@@ -177,26 +186,26 @@
 
         </div>
 
-        <!-- Full-Width Bottom Block: Direct SQL Execution Engine -->
+        <!-- Full-Width Bottom Block: Direct Database Console & Query Engine -->
         <div class="mt-4 border-sharp bg-obsidian rounded p-3.5 space-y-2.5 w-full">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <span class="h-2 w-2 rounded-full bg-cyber-emerald animate-led"></span>
-              <span class="mono text-xs font-bold uppercase tracking-wider text-white">Direct SQL Execution Engine</span>
-              <span class="mono text-[10px] px-1.5 py-0.2 rounded bg-surface border border-surface-border text-cyber-mint">Active Session</span>
+              <span id="quick-query-led" class="h-2 w-2 rounded-full bg-cyber-emerald animate-led"></span>
+              <span id="quick-query-title" class="mono text-xs font-bold uppercase tracking-wider text-white">Direct Database Console & Query Engine</span>
+              <span id="quick-query-engine-badge" class="mono text-[10px] px-1.5 py-0.2 rounded bg-surface border border-surface-border text-cyber-mint">Active Session</span>
             </div>
             <div class="flex items-center gap-3 text-[10px] mono text-slate-400">
-              <span>Target: <strong class="text-cyber-emerald">sample-postgres-rw / -ro</strong></span>
+              <span>Target: <strong id="quick-query-target-desc" class="text-cyber-emerald">Primary RW / Standby RO</strong></span>
               <span>Latency: <strong class="text-cyber-mint">&lt; 15ms</strong> via kubectl exec</span>
             </div>
           </div>
           <div class="flex items-center gap-2.5">
             <input id="quick-sql-input" type="text" value="SELECT current_database(), inet_server_addr(), pg_is_in_recovery(), now();" class="flex-1 bg-surface border-sharp rounded px-3.5 py-2 text-xs mono text-cyber-emerald focus:outline-none focus:border-cyber-emerald transition shadow-inner">
             <button id="btn-query-primary" onclick="executeQuickSQL('primary')" class="px-4 py-2 bg-cyber-emerald text-black font-mono font-bold text-xs rounded hover:bg-cyber-emerald/90 transition flex items-center gap-1.5 shrink-0">
-              <span>⚡ Query RW (Primary)</span>
+              <span id="label-query-primary">⚡ Query RW (Primary)</span>
             </button>
             <button id="btn-query-replica" onclick="executeQuickSQL('replica')" class="px-4 py-2 bg-surface-alt hover:bg-surface-hover border-sharp text-slate-200 hover:text-white font-mono font-bold text-xs rounded transition flex items-center gap-1.5 shrink-0">
-              <span>🔍 Query RO (Replica)</span>
+              <span id="label-query-replica">🔍 Query RO (Replica)</span>
             </button>
           </div>
 

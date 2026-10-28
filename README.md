@@ -94,9 +94,10 @@ Traditional Kubernetes operators manage stateful workloads by reacting to high-l
 
 ### 3. Unified Mission Control Cockpit (`dashboard/`)
 * **Deep Forest / Bottle Green Design System**: Archival, high-contrast palette (`#0D1B1A`, `#112220`, `#1F3834`) tailored for long operating hours without harsh glare.
-* **Direct SQL Execution Engine**: Run queries (`SELECT`, transactional workloads) directly against primary or standby replicas with sub-15ms live results rendering.
+* **Multi-Cluster Cockpit Switcher**: Instant 1-click tab toggle between active **PostgreSQL (`sample-postgres`)** and **Redis (`sample-redis`)** clusters with live ready replica badges and topology tracking.
+* **Direct Database Console & Query Engine**: Run queries (`SELECT` workloads via `psql` or `PING` / `ROLE` / `INFO` / `GET` commands via `redis-cli`) directly against primary or standby replicas with sub-15ms live results rendering.
 * **HUD Action Feedback**: Floating tactile notification toasts displaying command strings, live exit status, and execution duration.
-* **Live eBPF Waterfall Stream**: Real-time streaming table of active kernel socket events categorized by protocol (`PGSQL`, `OPERATOR`, `GRAFANA`).
+* **Live eBPF Waterfall Stream**: Real-time streaming table of active kernel socket events categorized by protocol (`PGSQL`, `REDIS`, `OPERATOR`, `GRAFANA`, `CHAOS`).
 
 ---
 

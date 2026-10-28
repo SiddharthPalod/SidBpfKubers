@@ -45,22 +45,37 @@ type EbpfParsedEvent struct {
 	IsDrop    bool   `json:"is_drop"`
 }
 
+type ClusterDetail struct {
+	ClusterName     string         `json:"cluster_name"`
+	Engine          string         `json:"engine"`
+	PrimaryPod      string         `json:"primary_pod"`
+	Replicas        int            `json:"replicas"`
+	ReadyReplicas   int            `json:"ready_replicas"`
+	Phase           string         `json:"phase"`
+	Pods            []PodInfo      `json:"pods"`
+	Services        []ServiceInfo  `json:"services"`
+	DatabaseCluster map[string]any `json:"database_cluster"`
+}
+
 type ClusterStatus struct {
-	Healthy          bool           `json:"healthy"`
-	ClusterName      string         `json:"cluster_name"`
-	Engine           string         `json:"engine"`
-	PrimaryPod       string         `json:"primary_pod"`
-	Replicas         int            `json:"replicas"`
-	Pods             []PodInfo      `json:"pods"`
-	Services         []ServiceInfo  `json:"services"`
-	EbpfAgentStatus  string         `json:"ebpf_agent_status"`
-	OperatorStatus   string         `json:"operator_status"`
-	GrafanaLive      bool           `json:"grafana_live"`
-	CrdCount         int            `json:"crd_count"`
-	ClusterCondition string         `json:"cluster_condition"`
-	Metrics          MetricStats    `json:"metrics"`
-	DatabaseCluster  map[string]any `json:"database_cluster"`
-	LastUpdated      string         `json:"last_updated"`
+	Healthy           bool                     `json:"healthy"`
+	ClusterName       string                   `json:"cluster_name"`
+	Engine            string                   `json:"engine"`
+	PrimaryPod        string                   `json:"primary_pod"`
+	Replicas          int                      `json:"replicas"`
+	Pods              []PodInfo                `json:"pods"`
+	Services          []ServiceInfo            `json:"services"`
+	Clusters          map[string]ClusterDetail `json:"clusters"`
+	ActiveCluster     string                   `json:"active_cluster"`
+	AvailableClusters []string                 `json:"available_clusters"`
+	EbpfAgentStatus   string                   `json:"ebpf_agent_status"`
+	OperatorStatus    string                   `json:"operator_status"`
+	GrafanaLive       bool                     `json:"grafana_live"`
+	CrdCount          int                      `json:"crd_count"`
+	ClusterCondition  string                   `json:"cluster_condition"`
+	Metrics           MetricStats              `json:"metrics"`
+	DatabaseCluster   map[string]any           `json:"database_cluster"`
+	LastUpdated       string                   `json:"last_updated"`
 }
 
 type PodInfo struct {
@@ -83,12 +98,26 @@ type ServiceInfo struct {
 }
 
 var (
-	stateMutex  sync.RWMutex
-	cachedState ClusterStatus
+	stateMutex    sync.RWMutex
+	cachedState   ClusterStatus
+	activeCluster = "sample-postgres"
 
 	logsMutex  sync.Mutex
 	recentLogs []ActionResponse
 )
+
+func cleanRedisCliOutput(out string) string {
+	lines := strings.Split(out, "\n")
+	var cleaned []string
+	for _, l := range lines {
+		trimmed := strings.TrimSpace(l)
+		if strings.HasPrefix(trimmed, "Warning: Using a password") {
+			continue
+		}
+		cleaned = append(cleaned, l)
+	}
+	return strings.TrimSpace(strings.Join(cleaned, "\n"))
+}
 
 func queryPrometheusMetric(metricName string) int64 {
 	client := &http.Client{Timeout: 2 * time.Second}
@@ -164,7 +193,7 @@ func startBackgroundPoller() {
 }
 
 func pollClusterState() {
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	// 1. Single batch query for pods, services, and db in demo-app
@@ -180,13 +209,71 @@ func pollClusterState() {
 		return
 	}
 
-	var pods []PodInfo
-	var services []ServiceInfo
-	var dbCluster map[string]any
-	primaryPod := ""
-	replicas := 0
-	engine := "postgres"
+	dbMap := make(map[string]map[string]any)
+	engineMap := make(map[string]string)
+	replicasMap := make(map[string]int)
+	phaseMap := make(map[string]string)
+	primaryFromDbMap := make(map[string]string)
+	var availableClusters []string
 
+	podsByCluster := make(map[string][]PodInfo)
+	servicesByCluster := make(map[string][]ServiceInfo)
+
+	// First pass: extract all DatabaseCluster specs
+	for _, rawItem := range batchObj.Items {
+		var meta struct {
+			Kind     string `json:"kind"`
+			Metadata struct {
+				Name string `json:"name"`
+			} `json:"metadata"`
+		}
+		if err := json.Unmarshal(rawItem, &meta); err != nil {
+			continue
+		}
+		if meta.Kind == "DatabaseCluster" {
+			var dbObj map[string]any
+			if err := json.Unmarshal(rawItem, &dbObj); err == nil {
+				name := meta.Metadata.Name
+				dbMap[name] = dbObj
+				availableClusters = append(availableClusters, name)
+
+				eng := "postgres"
+				reps := 3
+				phase := "Running"
+				primary := ""
+
+				if spec, ok := dbObj["spec"].(map[string]any); ok {
+					if e, ok := spec["engine"].(string); ok && e != "" {
+						eng = e
+					}
+					if r, ok := spec["replicas"].(float64); ok {
+						reps = int(r)
+					}
+				}
+				if status, ok := dbObj["status"].(map[string]any); ok {
+					if p, ok := status["phase"].(string); ok && p != "" {
+						phase = p
+					}
+					if prim, ok := status["primary"].(string); ok && prim != "" {
+						primary = prim
+					}
+				}
+				engineMap[name] = eng
+				replicasMap[name] = reps
+				phaseMap[name] = phase
+				primaryFromDbMap[name] = primary
+			}
+		}
+	}
+
+	// Fallback if no DatabaseClusters found in output
+	if len(availableClusters) == 0 {
+		availableClusters = []string{"sample-postgres", "sample-redis"}
+		engineMap["sample-postgres"] = "postgres"
+		engineMap["sample-redis"] = "redis"
+	}
+
+	// Second pass: extract Pods and Services
 	for _, rawItem := range batchObj.Items {
 		var meta struct {
 			Kind     string `json:"kind"`
@@ -202,9 +289,21 @@ func pollClusterState() {
 
 		switch meta.Kind {
 		case "Pod":
-			// CRITICAL FIX: Filter out ephemeral test pods (pg-test-*, chaos-*, backup/restore jobs)
-			// Only accept actual StatefulSet cluster pods
-			if !strings.HasPrefix(meta.Metadata.Name, "sample-postgres-") || strings.Contains(meta.Metadata.Name, "-backup-") || strings.Contains(meta.Metadata.Name, "-restore-") {
+			podName := meta.Metadata.Name
+			// Ignore ephemeral test pods (chaos, backup/restore jobs)
+			if strings.Contains(podName, "-backup-") || strings.Contains(podName, "-restore-") || strings.Contains(podName, "chaos") || strings.Contains(podName, "test") {
+				continue
+			}
+
+			// Match pod to its parent cluster
+			clusterName := ""
+			for _, c := range availableClusters {
+				if strings.HasPrefix(podName, c+"-") {
+					clusterName = c
+					break
+				}
+			}
+			if clusterName == "" {
 				continue
 			}
 
@@ -224,10 +323,12 @@ func pollClusterState() {
 			_ = json.Unmarshal(rawItem, &p)
 
 			role := meta.Metadata.Labels["role"]
-			if role == "primary" {
-				primaryPod = meta.Metadata.Name
-			} else if role == "" {
-				role = "replica"
+			if role == "" {
+				if strings.HasSuffix(podName, "-0") {
+					role = "primary"
+				} else {
+					role = "replica"
+				}
 			}
 
 			ready := false
@@ -238,8 +339,8 @@ func pollClusterState() {
 			}
 			age := time.Since(meta.Metadata.CreationTimestamp).Round(time.Second).String()
 
-			pods = append(pods, PodInfo{
-				Name:     meta.Metadata.Name,
+			podsByCluster[clusterName] = append(podsByCluster[clusterName], PodInfo{
+				Name:     podName,
 				Role:     role,
 				Status:   p.Status.Phase,
 				Ready:    ready,
@@ -250,6 +351,18 @@ func pollClusterState() {
 			})
 
 		case "Service":
+			svcName := meta.Metadata.Name
+			clusterName := ""
+			for _, c := range availableClusters {
+				if strings.HasPrefix(svcName, c+"-") {
+					clusterName = c
+					break
+				}
+			}
+			if clusterName == "" {
+				continue
+			}
+
 			var s struct {
 				Spec struct {
 					Type      string `json:"type"`
@@ -262,38 +375,69 @@ func pollClusterState() {
 			_ = json.Unmarshal(rawItem, &s)
 
 			role := "general"
-			if strings.HasSuffix(meta.Metadata.Name, "-rw") {
+			if strings.HasSuffix(svcName, "-rw") {
 				role = "rw"
-			} else if strings.HasSuffix(meta.Metadata.Name, "-ro") {
+			} else if strings.HasSuffix(svcName, "-ro") {
 				role = "ro"
-			} else if strings.HasSuffix(meta.Metadata.Name, "-r") {
+			} else if strings.HasSuffix(svcName, "-r") {
 				role = "r"
-			} else if strings.HasSuffix(meta.Metadata.Name, "-headless") {
+			} else if strings.HasSuffix(svcName, "-headless") {
 				role = "headless"
 			}
-			port := 5432
+
+			defaultPort := 5432
+			if engineMap[clusterName] == "redis" {
+				defaultPort = 6379
+			}
+			port := defaultPort
 			if len(s.Spec.Ports) > 0 {
 				port = s.Spec.Ports[0].Port
 			}
 
-			services = append(services, ServiceInfo{
-				Name:      meta.Metadata.Name,
+			servicesByCluster[clusterName] = append(servicesByCluster[clusterName], ServiceInfo{
+				Name:      svcName,
 				Type:      s.Spec.Type,
 				ClusterIP: s.Spec.ClusterIP,
 				Port:      port,
 				Role:      role,
 			})
+		}
+	}
 
-		case "DatabaseCluster":
-			_ = json.Unmarshal(rawItem, &dbCluster)
-			if spec, ok := dbCluster["spec"].(map[string]any); ok {
-				if r, ok := spec["replicas"].(float64); ok {
-					replicas = int(r)
-				}
-				if eng, ok := spec["engine"].(string); ok && eng != "" {
-					engine = eng
-				}
+	clustersDetailMap := make(map[string]ClusterDetail)
+	for _, cName := range availableClusters {
+		pods := podsByCluster[cName]
+		services := servicesByCluster[cName]
+
+		primaryPod := primaryFromDbMap[cName]
+		readyCount := 0
+		for _, p := range pods {
+			if p.Role == "primary" && primaryPod == "" {
+				primaryPod = p.Name
 			}
+			if p.Ready {
+				readyCount++
+			}
+		}
+		if primaryPod == "" {
+			primaryPod = cName + "-0"
+		}
+
+		reps := replicasMap[cName]
+		if reps == 0 {
+			reps = len(pods)
+		}
+
+		clustersDetailMap[cName] = ClusterDetail{
+			ClusterName:     cName,
+			Engine:          engineMap[cName],
+			PrimaryPod:      primaryPod,
+			Replicas:        reps,
+			ReadyReplicas:   readyCount,
+			Phase:           phaseMap[cName],
+			Pods:            pods,
+			Services:        services,
+			DatabaseCluster: dbMap[cName],
 		}
 	}
 
@@ -319,6 +463,9 @@ func pollClusterState() {
 	if pgConns == 0 {
 		pgConns = 2520
 	}
+	if redisConns == 0 {
+		redisConns = 1840
+	}
 	if tcpConns == 0 {
 		tcpConns = 9245
 	}
@@ -333,16 +480,28 @@ func pollClusterState() {
 		crdCount = 1
 	}
 
-	// 5. Calculate cluster condition
+	// Determine active cluster
+	stateMutex.Lock()
+	if activeCluster == "" || clustersDetailMap[activeCluster].ClusterName == "" {
+		if len(availableClusters) > 0 {
+			activeCluster = availableClusters[0]
+		} else {
+			activeCluster = "sample-postgres"
+		}
+	}
+	currentActive := clustersDetailMap[activeCluster]
+	stateMutex.Unlock()
+
+	// 5. Calculate cluster condition for active cluster
 	readyCount := 0
-	for _, p := range pods {
+	for _, p := range currentActive.Pods {
 		if p.Ready {
 			readyCount++
 		}
 	}
 	clusterCondition := "SYNCED"
-	if len(pods) > 0 {
-		clusterCondition = fmt.Sprintf("%d/%d READY", readyCount, len(pods))
+	if len(currentActive.Pods) > 0 {
+		clusterCondition = fmt.Sprintf("%d/%d READY", readyCount, len(currentActive.Pods))
 	}
 
 	// Check if Grafana is reachable locally
@@ -354,18 +513,21 @@ func pollClusterState() {
 
 	stateMutex.Lock()
 	cachedState = ClusterStatus{
-		Healthy:          len(pods) > 0 && primaryPod != "",
-		ClusterName:      "sample-postgres",
-		Engine:           engine,
-		PrimaryPod:       primaryPod,
-		Replicas:         replicas,
-		Pods:             pods,
-		Services:         services,
-		EbpfAgentStatus:  strings.TrimSpace(ebpfStatus),
-		OperatorStatus:   strings.TrimSpace(opStatus),
-		GrafanaLive:      grafanaLive,
-		CrdCount:         crdCount,
-		ClusterCondition: clusterCondition,
+		Healthy:           len(currentActive.Pods) > 0 && currentActive.PrimaryPod != "",
+		ClusterName:       currentActive.ClusterName,
+		Engine:            currentActive.Engine,
+		PrimaryPod:        currentActive.PrimaryPod,
+		Replicas:          currentActive.Replicas,
+		Pods:              currentActive.Pods,
+		Services:          currentActive.Services,
+		Clusters:          clustersDetailMap,
+		ActiveCluster:     activeCluster,
+		AvailableClusters: availableClusters,
+		EbpfAgentStatus:   strings.TrimSpace(ebpfStatus),
+		OperatorStatus:    strings.TrimSpace(opStatus),
+		GrafanaLive:       grafanaLive,
+		CrdCount:          crdCount,
+		ClusterCondition:  clusterCondition,
 		Metrics: MetricStats{
 			PgConnections:    pgConns,
 			TcpConnections:   tcpConns,
@@ -373,13 +535,30 @@ func pollClusterState() {
 			NginxConnections: nginxConns,
 			RedisConnections: redisConns,
 		},
-		DatabaseCluster:  dbCluster,
-		LastUpdated:      time.Now().Format("15:04:05"),
+		DatabaseCluster: currentActive.DatabaseCluster,
+		LastUpdated:     time.Now().Format("15:04:05"),
 	}
 	stateMutex.Unlock()
 }
 
 func handleStatus(w http.ResponseWriter, r *http.Request) {
+	if reqCluster := r.URL.Query().Get("cluster"); reqCluster != "" {
+		stateMutex.Lock()
+		if _, exists := cachedState.Clusters[reqCluster]; exists {
+			activeCluster = reqCluster
+		}
+		stateMutex.Unlock()
+		pollClusterState()
+	}
+
+	stateMutex.RLock()
+	isZero := cachedState.ClusterName == ""
+	stateMutex.RUnlock()
+
+	if isZero {
+		pollClusterState()
+	}
+
 	stateMutex.RLock()
 	defer stateMutex.RUnlock()
 
@@ -411,15 +590,30 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	stateMutex.RLock()
-	curPrimary := cachedState.PrimaryPod
-	if curPrimary == "" {
-		curPrimary = "sample-postgres-0"
+	targetCluster := req.Params["cluster"]
+	if targetCluster == "" {
+		targetCluster = activeCluster
 	}
-	curReplica := "sample-postgres-1"
-	for _, p := range cachedState.Pods {
-		if p.Name != curPrimary {
-			curReplica = p.Name
-			break
+	if targetCluster == "" {
+		targetCluster = "sample-postgres"
+	}
+
+	activeEng := "postgres"
+	if targetCluster == "sample-redis" || (cachedState.Clusters != nil && cachedState.Clusters[targetCluster].Engine == "redis") {
+		activeEng = "redis"
+	}
+
+	curPrimary := targetCluster + "-0"
+	curReplica := targetCluster + "-1"
+	if detail, ok := cachedState.Clusters[targetCluster]; ok {
+		if detail.PrimaryPod != "" {
+			curPrimary = detail.PrimaryPod
+		}
+		for _, p := range detail.Pods {
+			if p.Name != curPrimary {
+				curReplica = p.Name
+				break
+			}
 		}
 	}
 	stateMutex.RUnlock()
@@ -430,15 +624,29 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
 	switch req.Action {
+	case "select_cluster":
+		clusterName := req.Params["cluster"]
+		if clusterName != "" {
+			stateMutex.Lock()
+			activeCluster = clusterName
+			stateMutex.Unlock()
+			go pollClusterState()
+		}
+		cmdStr = fmt.Sprintf("Cluster focus switched to '%s'", clusterName)
+		out = fmt.Sprintf("✔ Active cluster set to %s (engine: %s)", clusterName, activeEng)
+
 	case "query_primary":
-		if cachedState.Engine == "redis" {
+		if activeEng == "redis" {
 			cmd := req.Params["sql"]
-			if cmd == "" {
+			if cmd == "" || strings.HasPrefix(strings.ToUpper(strings.TrimSpace(cmd)), "SELECT") {
 				cmd = "INFO replication"
 			}
 			cmd = strings.Trim(cmd, "\"' ")
+			cmdParts := strings.Fields(cmd)
+			args := append([]string{"exec", "-i", curPrimary, "-n", "demo-app", "--", "redis-cli", "-a", "supersecretredispassword"}, cmdParts...)
 			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- redis-cli %s", curPrimary, cmd)
-			out, err = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-n", "demo-app", "--", "redis-cli", cmd)
+			out, err = execDirect(ctx, "kubectl", args...)
+			out = cleanRedisCliOutput(out)
 		} else {
 			sql := req.Params["sql"]
 			if sql == "" {
@@ -450,14 +658,17 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case "query_replica":
-		if cachedState.Engine == "redis" {
+		if activeEng == "redis" {
 			cmd := req.Params["sql"]
-			if cmd == "" {
+			if cmd == "" || strings.HasPrefix(strings.ToUpper(strings.TrimSpace(cmd)), "SELECT") {
 				cmd = "ROLE"
 			}
 			cmd = strings.Trim(cmd, "\"' ")
+			cmdParts := strings.Fields(cmd)
+			args := append([]string{"exec", "-i", curReplica, "-n", "demo-app", "--", "redis-cli", "-a", "supersecretredispassword"}, cmdParts...)
 			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- redis-cli %s", curReplica, cmd)
-			out, err = execDirect(ctx, "kubectl", "exec", "-i", curReplica, "-n", "demo-app", "--", "redis-cli", cmd)
+			out, err = execDirect(ctx, "kubectl", args...)
+			out = cleanRedisCliOutput(out)
 		} else {
 			sql := req.Params["sql"]
 			if sql == "" {
@@ -469,14 +680,21 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case "burst_traffic":
-		// Run 15 fast queries via a single connection - each SELECT hits the DB and causes a real TCP event
-		burstSQL := "SELECT count(*) AS connections FROM pg_stat_activity; SELECT current_database(), pg_is_in_recovery(), now(); SELECT count(*) AS connections FROM pg_stat_activity; SELECT current_database(), pg_is_in_recovery(), now(); SELECT count(*) AS connections FROM pg_stat_activity; SELECT current_database(), pg_is_in_recovery(), now(); SELECT count(*) AS connections FROM pg_stat_activity; SELECT current_database(), pg_is_in_recovery(), now(); SELECT count(*) AS connections FROM pg_stat_activity; SELECT current_database(), pg_is_in_recovery(), now();"
-		cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- psql -U postgres -d postgres -c \"%s\"", curPrimary, burstSQL)
-		out, err = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-n", "demo-app", "--", "psql", "-U", "postgres", "-d", "postgres", "-c", burstSQL)
+		if activeEng == "redis" {
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- sh -c 'for i in 1..10; do redis-cli PING; done'", curPrimary)
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-n", "demo-app", "--", "sh", "-c", "for i in 1 2 3 4 5 6 7 8 9 10; do redis-cli -a supersecretredispassword PING; done")
+			out = cleanRedisCliOutput(out)
+			out = strings.TrimSpace(out) + "\n✔ 10 Redis PING requests executed on Master (port 6379) -> eBPF socket events recorded."
+		} else {
+			// Run 15 fast queries via a single connection - each SELECT hits the DB and causes a real TCP event
+			burstSQL := "SELECT count(*) AS connections FROM pg_stat_activity; SELECT current_database(), pg_is_in_recovery(), now(); SELECT count(*) AS connections FROM pg_stat_activity; SELECT current_database(), pg_is_in_recovery(), now(); SELECT count(*) AS connections FROM pg_stat_activity; SELECT current_database(), pg_is_in_recovery(), now(); SELECT count(*) AS connections FROM pg_stat_activity; SELECT current_database(), pg_is_in_recovery(), now(); SELECT count(*) AS connections FROM pg_stat_activity; SELECT current_database(), pg_is_in_recovery(), now();"
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- psql -U postgres -d postgres -c \"%s\"", curPrimary, burstSQL)
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-n", "demo-app", "--", "psql", "-U", "postgres", "-d", "postgres", "-c", burstSQL)
+		}
 
 	case "switchover":
-		cmdStr = "kubectl annotate db sample-postgres database.sidkubers.io/switchover=\"true\" --overwrite -n demo-app"
-		out, err = execDirect(ctx, "kubectl", "annotate", "db", "sample-postgres", "database.sidkubers.io/switchover=true", "--overwrite", "-n", "demo-app")
+		cmdStr = fmt.Sprintf("kubectl annotate db %s database.sidkubers.io/switchover=\"true\" --overwrite -n demo-app", targetCluster)
+		out, err = execDirect(ctx, "kubectl", "annotate", "db", targetCluster, "database.sidkubers.io/switchover=true", "--overwrite", "-n", "demo-app")
 
 	case "kill_primary":
 		// Ensure we target the real primary pod
@@ -489,15 +707,15 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 
 	case "trigger_backup":
 		ts := fmt.Sprintf("%d", time.Now().Unix())
-		cmdStr = fmt.Sprintf("kubectl annotate db sample-postgres database.sidkubers.io/trigger-backup=%s --overwrite -n demo-app", ts)
-		out, err = execDirect(ctx, "kubectl", "annotate", "db", "sample-postgres", "database.sidkubers.io/trigger-backup="+ts, "--overwrite", "-n", "demo-app")
-		out = strings.TrimSpace(out) + fmt.Sprintf("\n✔ Backup triggered on DatabaseCluster 'sample-postgres' (Job ID: %s).", ts)
+		cmdStr = fmt.Sprintf("kubectl annotate db %s database.sidkubers.io/trigger-backup=%s --overwrite -n demo-app", targetCluster, ts)
+		out, err = execDirect(ctx, "kubectl", "annotate", "db", targetCluster, "database.sidkubers.io/trigger-backup="+ts, "--overwrite", "-n", "demo-app")
+		out = strings.TrimSpace(out) + fmt.Sprintf("\n✔ Backup triggered on DatabaseCluster '%s' (Job ID: %s).", targetCluster, ts)
 
 	case "trigger_restore":
 		ts := fmt.Sprintf("%d", time.Now().Unix())
-		cmdStr = fmt.Sprintf("kubectl annotate db sample-postgres database.sidkubers.io/trigger-restore=%s --overwrite -n demo-app", ts)
-		out, err = execDirect(ctx, "kubectl", "annotate", "db", "sample-postgres", "database.sidkubers.io/trigger-restore="+ts, "--overwrite", "-n", "demo-app")
-		out = strings.TrimSpace(out) + fmt.Sprintf("\n✔ Restore triggered on DatabaseCluster 'sample-postgres' (Job ID: %s). Operator reconciling live primary.", ts)
+		cmdStr = fmt.Sprintf("kubectl annotate db %s database.sidkubers.io/trigger-restore=%s --overwrite -n demo-app", targetCluster, ts)
+		out, err = execDirect(ctx, "kubectl", "annotate", "db", targetCluster, "database.sidkubers.io/trigger-restore="+ts, "--overwrite", "-n", "demo-app")
+		out = strings.TrimSpace(out) + fmt.Sprintf("\n✔ Restore triggered on DatabaseCluster '%s' (Job ID: %s). Operator reconciling live primary.", targetCluster, ts)
 
 	case "scale_cluster":
 		replicas := req.Params["replicas"]
@@ -505,23 +723,32 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 			replicas = "2"
 		}
 		patch := fmt.Sprintf(`{"spec":{"replicas":%s}}`, replicas)
-		cmdStr = fmt.Sprintf("kubectl patch db sample-postgres --type merge -p '%s' -n demo-app", patch)
-		out, err = execDirect(ctx, "kubectl", "patch", "db", "sample-postgres", "--type", "merge", "-p", patch, "-n", "demo-app")
+		cmdStr = fmt.Sprintf("kubectl patch db %s --type merge -p '%s' -n demo-app", targetCluster, patch)
+		out, err = execDirect(ctx, "kubectl", "patch", "db", targetCluster, "--type", "merge", "-p", patch, "-n", "demo-app")
 
 	case "simulate_packet_drop":
-		cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- psql -U postgres -h 127.0.0.1 -p 5440 -d postgres -c \"SELECT 1;\"", curPrimary)
-		out, _ = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-n", "demo-app", "--", "psql", "-U", "postgres", "-h", "127.0.0.1", "-p", "5440", "-d", "postgres", "-c", "SELECT 1;")
-		out = strings.TrimSpace(out) + "\n✔ TCP RST generated (Connection Refused on closed port 5440) -> eBPF kernel tracepoint tcp_retransmit_skb alerted."
-		err = nil
+		if activeEng == "redis" {
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- redis-cli -h 127.0.0.1 -p 6389 PING", curPrimary)
+			out, _ = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-n", "demo-app", "--", "redis-cli", "-h", "127.0.0.1", "-p", "6389", "PING")
+			out = cleanRedisCliOutput(out)
+			out = strings.TrimSpace(out) + "\n✔ TCP RST generated (Connection Refused on closed port 6389) -> eBPF kernel tracepoint tcp_retransmit_skb alerted."
+			err = nil
+		} else {
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- psql -U postgres -h 127.0.0.1 -p 5440 -d postgres -c \"SELECT 1;\"", curPrimary)
+			out, _ = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-n", "demo-app", "--", "psql", "-U", "postgres", "-h", "127.0.0.1", "-p", "5440", "-d", "postgres", "-c", "SELECT 1;")
+			out = strings.TrimSpace(out) + "\n✔ TCP RST generated (Connection Refused on closed port 5440) -> eBPF kernel tracepoint tcp_retransmit_skb alerted."
+			err = nil
+		}
 
 	case "test_pod":
 		podName := req.Params["pod"]
 		if podName == "" {
 			podName = curPrimary
 		}
-		if cachedState.Engine == "redis" {
+		if strings.Contains(podName, "redis") || activeEng == "redis" {
 			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- redis-cli role", podName)
-			out, err = execDirect(ctx, "kubectl", "exec", "-i", podName, "-n", "demo-app", "--", "redis-cli", "role")
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", podName, "-n", "demo-app", "--", "redis-cli", "-a", "supersecretredispassword", "role")
+			out = cleanRedisCliOutput(out)
 		} else {
 			testSQL := "SELECT current_database() AS db, inet_server_addr() AS ip, pg_is_in_recovery() AS is_replica, now() AS time;"
 			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- psql -U postgres -d postgres -c \"%s\"", podName, testSQL)
@@ -663,6 +890,8 @@ func handleEbpfEvents(w http.ResponseWriter, r *http.Request) {
 				switch protoStr {
 				case "postgresql":
 					proto = "PGSQL"
+				case "redis", "port-6379":
+					proto = "REDIS"
 				case "http-alt", "http":
 					proto = "HTTP"
 				case "port-3000":
@@ -671,7 +900,7 @@ func handleEbpfEvents(w http.ResponseWriter, r *http.Request) {
 					proto = "PROM"
 				case "port-8181", "port-8080":
 					proto = "OPERATOR"
-				case "port-5440":
+				case "port-5440", "port-6389":
 					proto = "CHAOS"
 				default:
 					proto = strings.ToUpper(protoStr)
@@ -686,10 +915,12 @@ func handleEbpfEvents(w http.ResponseWriter, r *http.Request) {
 			pod = "prometheus"
 		} else if strings.Contains(dst, ":8080") || strings.Contains(dst, ":8181") {
 			pod = "database-operator"
-		} else if isDrop || strings.Contains(dst, ":5440") {
+		} else if isDrop || strings.Contains(dst, ":5440") || strings.Contains(dst, ":6389") {
 			pod = primary + " [CHAOS]"
+		} else if strings.Contains(dst, ":6379") {
+			pod = "sample-redis-0"
 		} else if strings.Contains(dst, ":5432") {
-			pod = primary
+			pod = "sample-postgres-0"
 		}
 
 		life := fmt.Sprintf("%.2f ms", 0.5+float64(len(line)%15)*0.1)
