@@ -9,9 +9,9 @@
 [![Grafana](https://img.shields.io/badge/Grafana-Visualization-F46800.svg?logo=grafana)](https://grafana.com/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
 
-**A Cloud-Native Kubernetes Operator for Database Lifecycle Orchestration paired with In-Kernel eBPF Telemetry, Prometheus Metrics, and Grafana Visualization.**
+**An Enterprise Multi-Engine Cloud-Native Database Operator for Kubernetes Paired with Low-Overhead In-Kernel eBPF Telemetry, Prometheus Metrics, and an Archival Mission Control Cockpit.**
 
-[Architecture](#architecture) • [Key Features](#key-features) • [Directory Structure](#directory-structure) • [Get Started](#get-started) • [Operator Walkthrough](#operator-walkthrough)
+[Overview](#overview) • [Architecture](#architecture) • [Supported Database Engines](#supported-database-engines) • [Key Features](#key-features) • [Directory Structure](#directory-structure) • [Get Started](#get-started) • [Operator Walkthrough](#operator-walkthrough) • [Tech Stack](#tech-stack)
 
 </div>
 
@@ -19,12 +19,14 @@
 
 ## Overview
 
-Traditional Kubernetes operators manage stateful workloads by reacting to high-level container states (cgroups, readiness probes, exit codes). However, they remain blind to sub-millisecond network degradation, streaming replication packet lag, and in-kernel TCP drops.
+Traditional Kubernetes database operators manage stateful workloads reactively through high-level container states (cgroups, readiness probes, exit codes). However, they remain blind to sub-millisecond network degradation, streaming replication packet lag, and in-kernel TCP drops.
 
-**SidBpfKubers** bridges this gap by marrying a **declarative Kubernetes database reconciler** with **low-overhead eBPF in-kernel telemetry**:
-* **Multi-Engine Lifecycle Management**: Declaratively orchestrates multi-replica PostgreSQL (WAL replication) and Redis (Master/Replica) topologies, with automated zero-downtime primary switchovers and physical PVC snapshot backups/restores.
-* **Deep In-Kernel Observability**: Attaches eBPF probes directly into the Linux kernel network subsystem (`sock/inet_sock_set_state` and `tcp/tcp_retransmit_skb`) to capture real-time socket transitions and packet drop anomalies.
-* **Mission Control Cockpit**: An enterprise web cockpit built with an archival Bottle Green / Deep Forest aesthetic, featuring real-time cluster topography, an inline SQL execution engine, eBPF telemetry waterfall, and embedded Grafana metrics.
+**SidBpfKubers** bridges this operational gap by combining a **declarative multi-engine Kubernetes database controller** with **deep in-kernel eBPF network telemetry**:
+
+* **5-Engine Enterprise Distributed Suite**: Declarative orchestration across Relational SQL (**PostgreSQL 16**), In-Memory Caching (**Redis 7**), Document NoSQL (**MongoDB 7.0**), Consensus Quorum (**etcd 3.5**), and Wide-Column Peer-to-Peer Rings (**Apache Cassandra 4.1**).
+* **Deep In-Kernel Observability**: Attaches eBPF probes directly into Linux kernel network tracepoints (`sock/inet_sock_set_state` and `tcp/tcp_retransmit_skb`) to capture real-time socket handshakes, lifecycle states, and packet drop anomalies.
+* **Atomic 3-Tier Service Routing**: Automatically allocates virtual IPs (`-rw` write primary, `-ro` read-only pool, `-r` all-replica load-balanced, `-headless` peer discovery) with native engine port mapping.
+* **Mission Control Cockpit**: An archival Deep Forest / Obsidian visual cockpit featuring real-time cluster topography, glitch-free optimistic skeleton loaders, direct query test benches, and live embedded Grafana & Prometheus sparklines.
 
 ---
 
@@ -43,17 +45,23 @@ Traditional Kubernetes operators manage stateful workloads by reacting to high-l
 |                                                                                                    |
 |   +--------------------------+       Reconciles       +----------------------------------------+   |
 |   |   Custom Resource (CRD)  | <====================> |        database-operator (Go)          |   |
-|   |  DatabaseCluster (PG-16) |                        |  - Primary/Standby StatefulSets        |   |
-|   +--------------------------+                        |  - 3-Tier Services (-rw, -ro, -r)      |   |
-|                 |                                     |  - Zero-Downtime Switchover Engine     |   |
-|                 v                                     |  - Snapshot Backup & Restore Jobs      |   |
-|   +--------------------------+                        +----------------------------------------+   |
-|   |   PostgreSQL Replicas    |                                                                     |
-|   |  sample-postgres-0 (RW)  |                                                                     |
-|   |  sample-postgres-1 (RO)  | <=================+                                                 |
-|   |  sample-postgres-2 (RO)  |                   | Intercepts TCP Sockets & Packets                |
-|   +--------------------------+                   |                                                 |
-|                                                  v                                                 |
+|   |  DatabaseCluster Specs   |                        |  - Multi-Engine State Reconcilers      |   |
+|   |  (PG, Redis, Mongo,      |                        |  - 3-Tier Services (-rw, -ro, -r)      |   |
+|   |   etcd, Cassandra)       |                        |  - Zero-Downtime Switchover Engine     |   |
+|   +--------------------------+                        |  - Snapshot Backup & Restore Jobs      |   |
+|                 |                                     +----------------------------------------+   |
+|                 v                                                                                  |
+|   +--------------------------------------------------------------------------------------------+   |
+|   |   StatefulSet Distributed Pod Replicas                                                     |   |
+|   |   - sample-postgres-0..N (WAL Streaming Primary/Standby)                                   |   |
+|   |   - sample-redis-0..N    (Master/Replica Replication)                                      |   |
+|   |   - sample-mongodb-0..N  (Replica Set rs0 WiredTiger Quorum)                               |   |
+|   |   - sample-etcd-0..N     (Raft Peer Consensus Quorum)                                      |   |
+|   |   - sample-cassandra-0..N(Gossip Peer-to-Peer DHT Ring)                                     |   |
+|   +--------------------------------------------------------------------------------------------+   |
+|                 |                                                                                  |
+|                 +====================+ Intercepts TCP Sockets & Packets                            |
+|                                      v                                                             |
 |                         +-----------------------------------------------+                          |
 |                         |         ebpf-agent (DaemonSet)                |                          |
 |                         |   - tracepoint/sock/inet_sock_set_state       |                          |
@@ -64,7 +72,7 @@ Traditional Kubernetes operators manage stateful workloads by reacting to high-l
 |                                                 v Metrics & Logs                                   |
 |                         +-----------------------+-----------------------+                          |
 |                         |     Prometheus (:9090) & Grafana (:3000)      |                          |
-|                         |   - Real-time PG Conns & WAL Sync Lag         |                          |
+|                         |   - Real-time PG, Redis, Mongo, Cass, etcd    |                          |
 |                         |   - Kernel Sockets & TCP Drop Counters        |                          |
 |                         +-----------------------------------------------+                          |
 +----------------------------------------------------------------------------------------------------+
@@ -72,32 +80,43 @@ Traditional Kubernetes operators manage stateful workloads by reacting to high-l
 
 ---
 
+## Supported Database Engines
+
+SidBpfKubers leverages the **Strategy Pattern** (`operator/internal/engines/`) to orchestrate distinct stateful topologies:
+
+| Engine | Version | Default Topology | Protocol Port(s) | Role Model | Native Verification Command |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **PostgreSQL** | `16-alpine` | WAL Streaming Replication | `5432` | `👑 PRIMARY` / `📦 STANDBY` | `SELECT version(), pg_is_in_recovery();` |
+| **Redis** | `7.2-alpine` | Asynchronous Master / Replica | `6379` | `👑 MASTER` / `📦 REPLICA` | `redis-cli role` / `INFO replication` |
+| **MongoDB** | `7.0` | Replica Set (`rs0`) Quorum | `27017` | `👑 PRIMARY` / `🍃 SECONDARY` | `rs.status().members` |
+| **etcd** | `3.5` | Raft Consensus Distributed Quorum | `2379`, `2380` | `👑 LEADER` / `🏛️ FOLLOWER` | `etcdctl endpoint status` |
+| **Cassandra**| `4.1` | Peer-to-Peer Gossip & DHT Ring | `9042`, `7000`, `7199` | `⚡ SEED PEER` / `🧬 RING PEER` | `nodetool status` / `system.local` |
+
+---
+
 ## Key Features
 
-### 1. Multi-Engine Strategy Architecture (`operator/internal/engines/`)
-* **Extensible Storage Strategy Pattern**: Follows SOLID, KISS, and DRY design principles. The operator abstracts database-specific quirks behind a unified `Engine` interface:
-  * **PostgreSQL Engine**: Automated WAL streaming replication, `pg_hba.conf` configuration, `pg_basebackup -R` standby bootstrap, and synchronous commit quorum options.
-  * **Redis Engine**: Master/Replica cluster bootstrap (`replicaof <cluster>-0.<cluster>-headless 6379`), automated health probes (`redis-cli ping`), and seamless primary failover.
-* **Atomic 3-Tier Virtual IP Routing**: Automatically provisions and manages dedicated Kubernetes services for any engine:
-  * `-rw` (`ClusterIP` pointing exclusively to the active Primary / Master node).
+### 1. Storage Strategy Pattern Reconciler (`operator/internal/engines/`)
+* **Unified Interface**: Decoupled engine abstractions handling bootstrapping, configuration generation (`pg_hba.conf`, `mongod.conf`, `cassandra.yaml`), and replica peering.
+* **Atomic 3-Tier Virtual IP Routing**:
+  * `-rw` (`ClusterIP` routing exclusively to the active Primary / Master / Leader / Seed node).
   * `-ro` (`ClusterIP` load-balancing queries across read-only standby replicas).
-  * `-r` (Read pool across all ready cluster pods).
-  * `-headless` (Governing service for direct StatefulSet peer-to-peer replication traffic).
-* **Zero-Downtime Planned Switchover**: Reconciles annotations (`database.sidkubers.io/switchover="true"`) to coordinate graceful primary step-downs, promote the standby replica, and redirect write traffic with zero split-brain risk.
-* **PVC Snapshot & Restore**: Executes physical checkpointing to persistent backup volumes and coordinates replica reconstruction.
+  * `-r` (Balanced pool across all healthy cluster replicas).
+  * `-headless` (Governing headless service for direct StatefulSet peer-to-peer communication).
+* **Automated & Planned Failover**: Annotate `database.sidkubers.io/switchover="true"` to coordinate zero-split-brain leadership transition.
+* **Snapshot Backup & Restore**: Initiates physical PVC volume checkpoints and coordinates state reconstruction.
 
-### 2. In-Kernel eBPF Observability (`ebpf-agent/`)
-* **Tracepoints Attached**:
-  * `sock/inet_sock_set_state`: Tracks connection handshakes, state machine evolutions (ESTABLISHED, CLOSE_WAIT, TIME_WAIT), and socket lifetimes.
-  * `tcp/tcp_retransmit_skb`: Intercepts socket buffer drops and network congestion events at the kernel driver layer.
-* **Per-CPU RingBuffer**: Asynchronous, high-throughput kernel-to-userspace event streaming with zero heap allocations on the hot path.
+### 2. In-Kernel eBPF Telemetry (`ebpf-agent/`)
+* **Kernel Tracepoints Hooked**:
+  * `sock/inet_sock_set_state`: Real-time tracking of connection handshakes and lifecycle states (ESTABLISHED, CLOSE_WAIT, TIME_WAIT).
+  * `tcp/tcp_retransmit_skb`: Interception of kernel socket buffer retransmissions and drops.
+* **Per-CPU RingBuffer**: Asynchronous, zero-heap-allocation event streaming directly from kernel space to userspace Prometheus exporters.
 
-### 3. Unified Mission Control Cockpit (`dashboard/`)
-* **Deep Forest / Bottle Green Design System**: Archival, high-contrast palette (`#0D1B1A`, `#112220`, `#1F3834`) tailored for long operating hours without harsh glare.
-* **Multi-Cluster Cockpit Switcher**: Instant 1-click tab toggle between active **PostgreSQL (`sample-postgres`)** and **Redis (`sample-redis`)** clusters with live ready replica badges and topology tracking.
-* **Direct Database Console & Query Engine**: Run queries (`SELECT` workloads via `psql` or `PING` / `ROLE` / `INFO` / `GET` commands via `redis-cli`) directly against primary or standby replicas with sub-15ms live results rendering.
-* **HUD Action Feedback**: Floating tactile notification toasts displaying command strings, live exit status, and execution duration.
-* **Live eBPF Waterfall Stream**: Real-time streaming table of active kernel socket events categorized by protocol (`PGSQL`, `REDIS`, `OPERATOR`, `GRAFANA`, `CHAOS`).
+### 3. Mission Control Cockpit (`dashboard/`)
+* **Multi-Cluster Switcher**: One-click cockpit switcher across all 5 database engines with honest replica indicators.
+* **Glitch-Free Skeleton Loading**: Instant pulsing skeleton placeholders during cluster switches with zero misleading text or leftover port badges.
+* **Direct Database Console**: Engine-tailored diagnostic actions (`Direct SQL Test`, `Redis Role Test`, `Mongo RS Test`, `etcd Endpoint Test`, and `nodetool Ring Status`).
+* **Embedded Grafana Canvas Block**: Provisioned 6-panel real-time protocol monitor (PostgreSQL, Redis, MongoDB, Cassandra, etcd, HTTP/Nginx) perfectly synchronized with the top Prometheus Live Telemetry Grid.
 
 ---
 
@@ -105,36 +124,40 @@ Traditional Kubernetes operators manage stateful workloads by reacting to high-l
 
 ```
 SidBpfKubers/
-├── crd-databasecluster.yaml     # CustomResourceDefinition specification (Postgres & Redis)
-├── sample-databasecluster.yaml  # Sample 3-node PostgreSQL 16 cluster manifest
-├── sample-rediscluster.yaml     # Sample 3-node Redis 7 cluster manifest
+├── crd-databasecluster.yaml     # CustomResourceDefinition specification
+├── examples/                    # Ready-to-apply database cluster manifests
+│   ├── sample-postgres.yaml     # PostgreSQL 16 streaming replication cluster
+│   ├── sample-redis.yaml        # Redis 7 Master/Replica cluster
+│   ├── sample-mongodb.yaml      # MongoDB 7.0 Replica Set (rs0) cluster
+│   ├── sample-etcd.yaml         # etcd 3.5 Raft consensus quorum
+│   └── sample-cassandra.yaml    # Apache Cassandra 4.1 peer-to-peer ring
 ├── operator/                    # Custom Kubernetes Operator in Go
 │   ├── api/v1alpha1/            # Go CRD struct definitions & OpenAPI schemas
 │   ├── cmd/main.go              # Operator runtime entrypoint
 │   ├── deploy/                  # Operator Deployment & RBAC manifests
 │   └── internal/
 │       ├── controller/          # Reconciliation loop implementation
-│       ├── engines/             # Strategy Pattern: PostgresEngine & RedisEngine
+│       ├── engines/             # Strategy Pattern (Postgres, Redis, Mongo, etcd, Cassandra)
 │       └── resources/           # Generalized StatefulSets, Services, ConfigMaps
 ├── ebpf-agent/                  # In-kernel socket & retransmit tracing agent
 │   ├── cmd/                     # Agent entrypoint
 │   ├── deploy/                  # DaemonSet & privileged security context
-│   └── main.go                  # RingBuffer reader & telemetry exporter
+│   └── main.go                  # RingBuffer reader & Prometheus metrics exporter
 ├── monitoring/                  # Observability infrastructure
 │   ├── prometheus.yaml          # Prometheus server configuration & scrape specs
 │   ├── grafana.yaml             # Grafana server with auto-provisioned dashboards
 │   └── ebpf-service.yaml        # Headless metrics endpoints
 └── dashboard/                   # Mission Control Cockpit
-    ├── server.go                # Go backend API, K8s exec bridge & asset server
+    ├── server.go                # Go backend API, K8s exec bridge & port-forward manager
     ├── index.html               # Main dashboard shell
-    ├── components/              # Modular UI components (Navbar, Sidebar, Layers)
-    │   ├── header.html
-    │   ├── subbar.html
-    │   ├── sidebar.html
-    │   ├── layer-k8s.html       # Cluster Topography & Direct SQL Engine
+    ├── components/              # Modular UI components
+    │   ├── header.html          # Global status & telemetry headers
+    │   ├── subbar.html          # Active cluster strip & latency display
+    │   ├── sidebar.html         # Spec breakdown & topology tree
+    │   ├── layer-k8s.html       # Cluster Topography & Atomic Routing cards
     │   ├── layer-kernel.html    # eBPF Kernel Waterfall Stream
-    │   ├── layer-grafana.html   # Embedded Grafana & Prometheus sparklines
-    │   └── terminal-drawer.html # Slide-over interactive CLI console
+    │   ├── layer-grafana.html   # Embedded Grafana Canvas & Prometheus grid
+    │   └── terminal-drawer.html # Interactive slide-over console drawer
     └── static/                  # Vanilla JS orchestrators & CSS styles
         ├── css/style.css
         └── js/                  # app.js, api.js, terminal.js, ebpf-stream.js
@@ -144,36 +167,11 @@ SidBpfKubers/
 
 ## Get Started
 
-> [!TIP]
-> ### 🚀 Recommended For First-Time Users: Phase 6 Mission Control Cockpit
-> If you are exploring **SidBpfKubers** for the first time, **start directly with the Phase 6 Mission Control Cockpit** (`http://localhost:8085`).
-> Instead of juggling multiple CLI terminal tabs, kubectl logs, and port forwards, the Mission Control Cockpit provides an **interactive visual cockpit** that connects directly to the live cluster:
-> * **Interactive Database Topography**: Real-time health, primary/standby failover states, and 3-tier routing VIPs.
-> * **Live In-Kernel eBPF Feed**: Visual waterfall stream of active kernel TCP socket state handshakes and drops.
-> * **Zero-Downtime Actions**: Trigger planned switchovers, backup jobs, and network chaos injections with one click.
-> * **Direct SQL Test Bench**: Execute live queries against primary or replica nodes with instant output feedback and execution HUD toasts.
-> * **Embedded Grafana & Prometheus**: Sparkline telemetry without manual port configuration.
+### Prerequisites
 
----
-
-### Prerequisites & Cluster Generation
-
-#### 1. Generate Local Kubernetes Cluster with Docker Desktop
-SidBpfKubers runs out of the box on **Docker Desktop** (Windows, macOS, or Linux):
-1. Open **Docker Desktop**.
-2. Navigate to **Settings** (gear icon in the top bar) $\rightarrow$ **Kubernetes**.
-3. Check the box **"Enable Kubernetes"**.
-4. *(Recommended)* Under **Settings** $\rightarrow$ **Resources**, allocate at least **4 CPUs** and **6 GB Memory** to ensure comfortable headroom for PostgreSQL, Prometheus, Grafana, and the eBPF agent.
-5. Click **"Apply & restart"** and wait for the Kubernetes status indicator in the bottom-left corner to turn green.
-6. Verify your local cluster context:
-   ```bash
-   kubectl config current-context
-   # Expected output: docker-desktop
-   ```
-
-#### 2. Install Required Tools
-* **Go**: v1.22+ (to run the dashboard server and build operator binaries)
-* **kubectl**: Configured with the `docker-desktop` context
+* **Local Kubernetes Cluster**: Docker Desktop with Kubernetes enabled (recommended: 4+ CPUs, 6+ GB RAM) or Minikube/Kind.
+* **Go**: v1.22+ (to run the cockpit server or compile operator binaries).
+* **kubectl**: Configured to connect to your local Kubernetes cluster.
 
 ---
 
@@ -181,25 +179,42 @@ SidBpfKubers runs out of the box on **Docker Desktop** (Windows, macOS, or Linux
 
 #### Step 1: Register CRD and Deploy the Database Operator
 ```bash
-# Register the CustomResourceDefinition
+# 1. Register CustomResourceDefinition
 kubectl apply -f crd-databasecluster.yaml
 
-# Deploy Operator, RBAC policies, and the sidkubers-system namespace
+# 2. Deploy Operator, RBAC policies, and namespace
 kubectl apply -f operator/deploy/operator.yaml
+```
 
-# Provision the sample 3-node PostgreSQL 16 cluster in demo-app
-kubectl apply -f sample-databasecluster.yaml
+#### Step 2: Provision Database Clusters (from `examples/`)
+Apply any or all of the production-grade sample manifests:
+
+```bash
+# Provision PostgreSQL 16 WAL Cluster
+kubectl apply -f examples/sample-postgres.yaml
+
+# Provision Redis 7 Master/Replica Cluster
+kubectl apply -f examples/sample-redis.yaml
+
+# Provision MongoDB 7.0 Replica Set
+kubectl apply -f examples/sample-mongodb.yaml
+
+# Provision etcd 3.5 Raft Quorum
+kubectl apply -f examples/sample-etcd.yaml
+
+# Provision Apache Cassandra 4.1 Gossip Ring
+kubectl apply -f examples/sample-cassandra.yaml
 ```
 
 Verify that the operator and database pods are running:
 ```bash
-kubectl get pods -n sidkubers-system
+kubectl get databaseclusters -n demo-app
 kubectl get pods -n demo-app -o wide
 ```
 
-#### Step 2: Deploy In-Kernel eBPF Agent & Monitoring Stack
+#### Step 3: Deploy In-Kernel eBPF Agent & Monitoring Stack
 ```bash
-# Launch the eBPF tracing agent DaemonSet (runs with elevated privileges to hook tracepoints)
+# Launch eBPF tracing DaemonSet
 kubectl apply -f ebpf-agent/deploy/daemonset.yaml
 
 # Deploy Prometheus and Grafana
@@ -207,42 +222,45 @@ kubectl apply -f monitoring/prometheus.yaml
 kubectl apply -f monitoring/grafana.yaml
 ```
 
-#### Step 3: Launch Mission Control Cockpit (Phase 6)
-The cockpit server auto-discovers your cluster, establishes internal port-forwards to Grafana (`:3000`) and Prometheus (`:9091`), and serves the interactive console:
+#### Step 4: Launch Mission Control Cockpit
+The cockpit server auto-discovers your clusters, manages background port-forwards to Grafana (`:3000`) and Prometheus (`:9091`), and serves the interactive UI:
+
 ```bash
 cd dashboard
-
-# Start the cockpit server
 go run server.go
 ```
 
 Open your browser to:
 👉 **[http://localhost:8085](http://localhost:8085)**
 
-*(The dashboard will load with the Bottle Green / Deep Forest analog palette, live pod cards, and immediate telemetry).*
-
 ---
 
 ## Operator Walkthrough
 
-### Trigger Zero-Downtime Switchover
-Promote a standby replica to primary atomically:
+### 1. Zero-Downtime Planned Failover
+Gracefully step down the primary and promote a standby replica without split-brain:
 ```bash
 kubectl annotate db sample-postgres database.sidkubers.io/switchover="true" --overwrite -n demo-app
 ```
 
-### Trigger Snapshot Backup Job
-Initiate a physical PVC backup checkpoint:
+### 2. Physical PVC Backup Checkpoint
+Initiate a physical volume checkpoint and snapshot job:
 ```bash
 kubectl annotate db sample-postgres database.sidkubers.io/trigger-backup="$(date +%s)" --overwrite -n demo-app
 ```
 
-### Inject TCP Connection Shock (eBPF Trip)
-Simulate network congestion or packet drop chaos across standby replicas:
+### 3. Cassandra Gossip Ring Verification
+Query the live distributed hash ring topology:
 ```bash
-# The eBPF agent intercepts and tags tcp_retransmit_skb tracepoints in real-time
+kubectl exec -i sample-cassandra-0 -c cassandra -n demo-app -- nodetool -h 127.0.0.1 -p 7199 status
+```
+
+### 4. Inject Network Chaos & TCP Drops
+Simulate network congestion or TCP retransmission shocks across replicas:
+```bash
 kubectl exec -it sample-postgres-0 -n demo-app -- /bin/sh -c "kill -STOP 1; sleep 2; kill -CONT 1"
 ```
+Observe the real-time drop spike in the **eBPF Retransmits** sparkline and the **TCP Retransmissions / Drops** panel in Grafana.
 
 ---
 
@@ -251,12 +269,12 @@ kubectl exec -it sample-postgres-0 -n demo-app -- /bin/sh -c "kill -STOP 1; slee
 | Component | Technology | Role |
 | :--- | :--- | :--- |
 | **Operator Runtime** | Go / `controller-runtime` | Declarative State Reconciliation |
-| **Database Engine** | PostgreSQL 16 (Alpine) | WAL Streaming Primary-Replica Topology |
-| **Kernel Tracing** | eBPF / Tracepoints | `inet_sock_set_state`, `tcp_retransmit_skb` |
+| **Database Engines** | Postgres 16, Redis 7, Mongo 7, etcd 3.5, Cassandra 4.1 | Multi-Topology Distributed Fleet |
+| **Kernel Tracing** | eBPF / Tracepoints / RingBuffer | `inet_sock_set_state`, `tcp_retransmit_skb` |
 | **Metrics Pipeline** | Prometheus / PromQL | Scrape Engine & Time-Series Store |
-| **Visualization** | Grafana 10 | Provisioned Dashboards & Panel Analytics |
+| **Visualization** | Grafana 10 | Auto-Provisioned Dashboards & Panel Analytics |
 | **Cockpit Engine** | Go `net/http` + Vanilla JS | Ultra-Lightweight DevOps Mission Control |
-| **UI Styling** | Tailwind CSS (Deep Forest) | High-Density Cyber-Industrial Console |
+| **UI Styling** | Tailwind CSS (Deep Forest / Bottle Green) | High-Density Cyber-Industrial Console |
 
 ---
 
