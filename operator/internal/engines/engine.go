@@ -43,6 +43,8 @@ func GetEngine(engineType string) Engine {
 		return &MongoDBEngine{}
 	case "etcd":
 		return &ETCDEngine{}
+	case "cassandra":
+		return &CassandraEngine{}
 	case "postgres", "postgresql", "":
 		return &PostgresEngine{}
 	default:

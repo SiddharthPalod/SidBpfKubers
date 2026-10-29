@@ -1,0 +1,10 @@
+apiVersion: database.sidkubers.io/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: sample-cassandra
+  namespace: demo-app
+spec:
+  engine: "cassandra"
+  replicas: 2
+  version: "4.1"
+  storage: "5Gi"

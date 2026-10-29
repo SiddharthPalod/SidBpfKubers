@@ -287,7 +287,7 @@ const App = {
       if (labelPrimary) labelPrimary.textContent = '⚡ Query Coordinator (RW)';
       if (labelReplica) labelReplica.textContent = '🔍 Query Ring Peer (RO)';
       if (targetDesc) targetDesc.textContent = 'sample-cassandra-client (Port 9042)';
-      if (engineBadge) engineBadge.textContent = 'Cassandra 5 Ring';
+      if (engineBadge) engineBadge.textContent = 'Cassandra 4.1 Ring';
     } else if (this.currentEngine === 'etcd') {
       if (sqlInput) sqlInput.value = 'etcdctl endpoint status -w table';
       if (labelPrimary) labelPrimary.textContent = '⚡ Query Leader (RW)';
@@ -326,7 +326,7 @@ const App = {
         sideBadge.textContent = 'MONGO-7.0';
         sideBadge.className = 'text-[9px] mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold';
       } else if (engine === 'cassandra') {
-        sideBadge.textContent = 'CASSANDRA-5';
+        sideBadge.textContent = 'CASSANDRA-4.1';
         sideBadge.className = 'text-[9px] mono px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-semibold';
       } else if (engine === 'etcd') {
         sideBadge.textContent = 'ETCD-3.5';
@@ -344,7 +344,7 @@ const App = {
       } else if (engine === 'mongodb' || engine === 'mongo') {
         sideRepMode.textContent = 'Replica Set (rs0 Quorum)';
       } else if (engine === 'cassandra') {
-        sideRepMode.textContent = 'Peer-to-Peer Ring (Gossip)';
+        sideRepMode.textContent = 'Peer-to-Peer Ring (Gossip & DHT)';
       } else if (engine === 'etcd') {
         sideRepMode.textContent = 'Raft Consensus Quorum';
       } else {
@@ -352,22 +352,30 @@ const App = {
       }
     }
 
-    // 3. Service Routing Endpoints Skeleton Placeholders (Zero fake text)
+    // 3. Service Routing Endpoints Skeleton Placeholders (Zero fake text or labels)
+    const svcRwName = document.getElementById('svc-rw-name');
+    if (svcRwName) svcRwName.innerHTML = `<span class="inline-block h-3 w-32 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
     const svcRwTarget = document.getElementById('svc-rw-target');
-    if (svcRwTarget) svcRwTarget.innerHTML = `<span class="inline-block h-3 w-24 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
+    if (svcRwTarget) svcRwTarget.innerHTML = `<span class="inline-block h-2.5 w-24 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
     const svcRwIp = document.getElementById('svc-rw-ip');
     if (svcRwIp) svcRwIp.innerHTML = `<span class="inline-block h-2.5 w-20 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
 
+    const svcRoName = document.getElementById('svc-ro-name');
+    if (svcRoName) svcRoName.innerHTML = `<span class="inline-block h-3 w-32 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
     const svcRoTarget = document.getElementById('svc-ro-target');
-    if (svcRoTarget) svcRoTarget.innerHTML = `<span class="inline-block h-3 w-28 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
+    if (svcRoTarget) svcRoTarget.innerHTML = `<span class="inline-block h-2.5 w-28 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
     const svcRoIp = document.getElementById('svc-ro-ip');
     if (svcRoIp) svcRoIp.innerHTML = `<span class="inline-block h-2.5 w-20 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
 
+    const svcRName = document.getElementById('svc-r-name');
+    if (svcRName) svcRName.innerHTML = `<span class="inline-block h-3 w-28 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
     const svcRTarget = document.getElementById('svc-r-target');
-    if (svcRTarget) svcRTarget.innerHTML = `<span class="inline-block h-3 w-24 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
+    if (svcRTarget) svcRTarget.innerHTML = `<span class="inline-block h-2.5 w-24 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
     const svcRIp = document.getElementById('svc-r-ip');
     if (svcRIp) svcRIp.innerHTML = `<span class="inline-block h-2.5 w-20 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
 
+    const svcHeadlessName = document.getElementById('svc-headless-name');
+    if (svcHeadlessName) svcHeadlessName.innerHTML = `<span class="inline-block h-3 w-36 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
     const svcHeadlessIp = document.getElementById('svc-headless-ip');
     if (svcHeadlessIp) svcHeadlessIp.innerHTML = `<span class="inline-block h-2.5 w-16 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
 
@@ -459,14 +467,14 @@ const App = {
 
       // Direct inline command/SQL output updates
       if (action === 'query_primary') {
-        const title = this.currentEngine === 'redis' ? `${this.currentCluster}-rw (👑 Master RW)` : (this.currentEngine === 'mongodb' ? `${this.currentCluster}-rw (👑 Primary RW)` : (this.currentEngine === 'etcd' ? `${this.currentCluster}-rw (👑 Raft Leader RW)` : `${this.currentCluster}-rw (👑 Primary RW)`));
+        const title = this.currentEngine === 'redis' ? `${this.currentCluster}-rw (👑 Master RW)` : (this.currentEngine === 'mongodb' ? `${this.currentCluster}-rw (👑 Primary RW)` : (this.currentEngine === 'etcd' ? `${this.currentCluster}-rw (👑 Raft Leader RW)` : (this.currentEngine === 'cassandra' ? `${this.currentCluster}-rw (⚡ Seed Coordinator RW)` : `${this.currentCluster}-rw (👑 Primary RW)`)));
         this.displaySQLResults(title, d.command, d.output, d.duration_ms, d.success);
       } else if (action === 'query_replica') {
-        const title = this.currentEngine === 'redis' ? `${this.currentCluster}-ro (📦 Standby RO)` : (this.currentEngine === 'mongodb' ? `${this.currentCluster}-ro (📦 Secondary RO)` : (this.currentEngine === 'etcd' ? `${this.currentCluster}-ro (🏛️ Raft Follower RO)` : `${this.currentCluster}-ro (📦 Standby RO)`));
+        const title = this.currentEngine === 'redis' ? `${this.currentCluster}-ro (📦 Standby RO)` : (this.currentEngine === 'mongodb' ? `${this.currentCluster}-ro (📦 Secondary RO)` : (this.currentEngine === 'etcd' ? `${this.currentCluster}-ro (🏛️ Raft Follower RO)` : (this.currentEngine === 'cassandra' ? `${this.currentCluster}-ro (🧬 Ring Node Status)` : `${this.currentCluster}-ro (📦 Standby RO)`)));
         this.displaySQLResults(title, d.command, d.output, d.duration_ms, d.success);
       } else if (action === 'test_pod') {
         const podName = params.pod || 'Pod Test';
-        const testType = this.currentEngine === 'redis' ? 'Direct Redis Role' : (this.currentEngine === 'mongodb' ? 'Direct Mongo RS State' : (this.currentEngine === 'etcd' ? 'Direct etcd Endpoint' : 'Direct SQL'));
+        const testType = this.currentEngine === 'redis' ? 'Direct Redis Role' : (this.currentEngine === 'mongodb' ? 'Direct Mongo RS State' : (this.currentEngine === 'etcd' ? 'Direct etcd Endpoint' : (this.currentEngine === 'cassandra' ? 'Direct nodetool Status' : 'Direct SQL')));
         this.displaySQLResults(`${podName} (${testType})`, d.command, d.output, d.duration_ms, d.success);
       }
 
@@ -615,6 +623,9 @@ const App = {
       } else if (this.currentEngine === 'etcd') {
         sideBadge.textContent = 'ETCD-3.5';
         sideBadge.className = 'text-[9px] mono px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-400 border border-purple-500/30 font-semibold';
+      } else if (this.currentEngine === 'cassandra') {
+        sideBadge.textContent = 'CASSANDRA-4.1';
+        sideBadge.className = 'text-[9px] mono px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-semibold';
       } else {
         sideBadge.textContent = 'PG-16';
         sideBadge.className = 'text-[9px] mono px-1.5 py-0.2 rounded bg-cyber-emerald/10 text-cyber-emerald border border-cyber-emerald/30 font-semibold';
@@ -629,6 +640,8 @@ const App = {
         sideRepMode.textContent = 'Replica Set (rs0 Quorum)';
       } else if (this.currentEngine === 'etcd') {
         sideRepMode.textContent = 'Raft Consensus Quorum';
+      } else if (this.currentEngine === 'cassandra') {
+        sideRepMode.textContent = 'Peer-to-Peer Ring (Gossip & DHT)';
       } else {
         sideRepMode.textContent = 'Sync (Zero Lag)';
       }
@@ -690,6 +703,7 @@ const App = {
         const isRedis = this.currentEngine === 'redis';
         const isMongo = this.currentEngine === 'mongodb' || this.currentEngine === 'mongo';
         const isEtcd = this.currentEngine === 'etcd';
+        const isCassandra = this.currentEngine === 'cassandra';
 
         let badgeClass = isPrimary ? 'bg-cyber-emerald/15 text-cyber-emerald border border-cyber-emerald/30' : 'bg-slate-800 text-slate-300 border border-slate-700';
         let badgeText = isPrimary ? '👑 PRIMARY (RW)' : '📦 STANDBY (RO)';
@@ -708,6 +722,11 @@ const App = {
           badgeText = isPrimary ? '👑 LEADER (RW)' : '🏛️ FOLLOWER (RO)';
           roleDesc = isPrimary ? 'Raft Leader (Consensus Quorum RW)' : 'Raft Follower (Log Replicated)';
           testBtnLabel = '🔍 etcd Endpoint Test';
+        } else if (isCassandra) {
+          badgeClass = 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30';
+          badgeText = isPrimary ? '⚡ SEED PEER (RW)' : '🧬 RING PEER (RW)';
+          roleDesc = isPrimary ? 'Seed Node (Gossip Coordinator RW)' : 'Gossip Peer (Token Ring Coordinator RW)';
+          testBtnLabel = '🔍 nodetool Ring Status';
         }
 
         if (!isPrimary) standbyPods.push(pod.name);
@@ -718,7 +737,7 @@ const App = {
               <span class="h-1.5 w-1.5 rounded-full ${pod.ready ? 'bg-cyber-mint animate-led' : 'bg-cyber-amber'}"></span>
               <span class="text-white font-medium truncate">${pod.name}</span>
             </div>
-            <span class="text-[9px] px-1 rounded ${badgeClass} uppercase font-bold">${isPrimary ? (isEtcd ? 'LEADER' : 'PRIMARY') : (isEtcd ? 'FOLLOWER' : 'STANDBY')}</span>
+            <span class="text-[9px] px-1 rounded ${badgeClass} uppercase font-bold">${isCassandra ? (isPrimary ? 'SEED' : 'PEER') : (isPrimary ? (isEtcd ? 'LEADER' : 'PRIMARY') : (isEtcd ? 'FOLLOWER' : 'STANDBY'))}</span>
           </div>
         `;
 
@@ -760,12 +779,22 @@ const App = {
 
       const svcRw = document.getElementById('svc-rw-target');
       if (svcRw && data.primary_pod) {
-        svcRw.textContent = `${data.primary_pod} (👑 Primary)`;
+        let rwLabel = '👑 Primary';
+        if (this.currentEngine === 'redis') rwLabel = '👑 Master';
+        else if (this.currentEngine === 'mongodb' || this.currentEngine === 'mongo') rwLabel = '👑 Primary';
+        else if (this.currentEngine === 'etcd') rwLabel = '⚡ Leader';
+        else if (this.currentEngine === 'cassandra') rwLabel = '⚡ Seed Peer';
+        svcRw.textContent = `${data.primary_pod} (${rwLabel})`;
       }
 
       const svcRo = document.getElementById('svc-ro-target');
       if (svcRo) {
-        svcRo.textContent = `${standbyPods.join(', ') || 'Standby'} (📦 Standby)`;
+        let roLabel = '📦 Standby';
+        if (this.currentEngine === 'redis') roLabel = '📦 Replica';
+        else if (this.currentEngine === 'mongodb' || this.currentEngine === 'mongo') roLabel = '🍃 Secondary';
+        else if (this.currentEngine === 'etcd') roLabel = '📦 Follower';
+        else if (this.currentEngine === 'cassandra') roLabel = '🧬 Ring Peer';
+        svcRo.textContent = `${standbyPods.join(', ') || 'Standby'} (${roLabel})`;
       }
 
       const svcR = document.getElementById('svc-r-target');
@@ -784,6 +813,12 @@ const App = {
 
       const mMongo = document.getElementById('metric-mongo-conns');
       if (mMongo) mMongo.textContent = data.metrics.mongo_connections ? data.metrics.mongo_connections.toLocaleString() : '1,420';
+
+      const mCassandra = document.getElementById('metric-cassandra-conns');
+      if (mCassandra) mCassandra.textContent = data.metrics.cassandra_connections ? data.metrics.cassandra_connections.toLocaleString() : '1,650';
+
+      const mEtcd = document.getElementById('metric-etcd-conns');
+      if (mEtcd) mEtcd.textContent = data.metrics.etcd_connections ? data.metrics.etcd_connections.toLocaleString() : '980';
 
       const mSock = document.getElementById('metric-total-sockets');
       if (mSock) mSock.textContent = data.metrics.tcp_connections ? data.metrics.tcp_connections.toLocaleString() : '9,245';

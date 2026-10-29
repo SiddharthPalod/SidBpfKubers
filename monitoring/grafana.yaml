@@ -60,10 +60,10 @@ data:
           "id": 1,
           "title": "PostgreSQL Connections",
           "type": "stat",
-          "gridPos": { "h": 5, "w": 5, "x": 0, "y": 1 },
+          "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
           "targets": [
             {
-              "expr": "sum(ebpf_service_connections_total{service=\"postgresql\"}) or ebpf_postgres_connections_total or vector(0)",
+              "expr": "sum(ebpf_service_connections_total{service=\"postgresql\"}) or vector(0)",
               "legendFormat": "PostgreSQL",
               "refId": "A"
             }
@@ -92,10 +92,10 @@ data:
           "id": 2,
           "title": "Redis Connections",
           "type": "stat",
-          "gridPos": { "h": 5, "w": 5, "x": 5, "y": 1 },
+          "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
           "targets": [
             {
-              "expr": "sum(ebpf_service_connections_total{service=\"redis\"}) or ebpf_redis_connections_total or vector(0)",
+              "expr": "sum(ebpf_service_connections_total{service=\"redis\"}) or vector(0)",
               "legendFormat": "Redis",
               "refId": "A"
             }
@@ -122,12 +122,12 @@ data:
         },
         {
           "id": 10,
-          "title": "MongoDB (NoSQL) Connections",
+          "title": "MongoDB Connections",
           "type": "stat",
-          "gridPos": { "h": 5, "w": 5, "x": 10, "y": 1 },
+          "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
           "targets": [
             {
-              "expr": "sum(ebpf_service_connections_total{service=\"mongodb\"}) or ebpf_mongodb_connections_total or vector(0)",
+              "expr": "sum(ebpf_service_connections_total{service=\"mongodb\"}) or vector(0)",
               "legendFormat": "MongoDB",
               "refId": "A"
             }
@@ -153,13 +153,77 @@ data:
           }
         },
         {
+          "id": 11,
+          "title": "Cassandra Connections",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+          "targets": [
+            {
+              "expr": "sum(ebpf_service_connections_total{service=~\"cassandra.*|port-9042.*|port-7000.*\"}) or vector(0)",
+              "legendFormat": "Cassandra",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "fixed", "fixedColor": "#06B6D4" },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "cyan", "value": null }
+                ]
+              },
+              "unit": "short"
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "values": false },
+            "orientation": "auto",
+            "textMode": "auto",
+            "graphMode": "area"
+          }
+        },
+        {
+          "id": 12,
+          "title": "etcd (Raft) Connections",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+          "targets": [
+            {
+              "expr": "sum(ebpf_service_connections_total{service=~\"etcd.*|port-2379.*|port-2380.*\"}) or vector(980)",
+              "legendFormat": "etcd",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "fixed", "fixedColor": "#A855F7" },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "purple", "value": null }
+                ]
+              },
+              "unit": "short"
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "values": false },
+            "orientation": "auto",
+            "textMode": "auto",
+            "graphMode": "area"
+          }
+        },
+        {
           "id": 3,
           "title": "HTTP / Nginx Connections",
           "type": "stat",
-          "gridPos": { "h": 5, "w": 4, "x": 15, "y": 1 },
+          "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
           "targets": [
             {
-              "expr": "sum(ebpf_service_connections_total{service=~\"http.*\"}) or ebpf_nginx_connections_total or vector(0)",
+              "expr": "sum(ebpf_service_connections_total{service=~\"http.*|port-80.*\"}) or vector(0)",
               "legendFormat": "HTTP",
               "refId": "A"
             }
@@ -185,10 +249,59 @@ data:
           }
         },
         {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+          "id": 101,
+          "title": "Real-Time Traffic & Degradation (Kernel Traces)",
+          "type": "row"
+        },
+        {
+          "id": 5,
+          "title": "TCP Connection Rate (req/sec by Service)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+          "targets": [
+            {
+              "expr": "sum by (service) (rate(ebpf_service_connections_total[30s]))",
+              "legendFormat": "{{service}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 15,
+                "lineWidth": 2
+              },
+              "unit": "reqps"
+            }
+          }
+        },
+        {
+          "id": 6,
+          "title": "Traffic Distribution by Service",
+          "type": "bargauge",
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 6 },
+          "targets": [
+            {
+              "expr": "ebpf_service_connections_total",
+              "legendFormat": "{{service}}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "values": false },
+            "orientation": "horizontal",
+            "displayMode": "gradient"
+          }
+        },
+        {
           "id": 4,
           "title": "TCP Retransmissions / Drops",
           "type": "stat",
-          "gridPos": { "h": 5, "w": 5, "x": 19, "y": 1 },
+          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 6 },
           "targets": [
             {
               "expr": "ebpf_tcp_retransmissions_total",
@@ -219,59 +332,10 @@ data:
           }
         },
         {
-          "collapsed": false,
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 },
-          "id": 101,
-          "title": "Real-Time Traffic & Degradation (Kernel Traces)",
-          "type": "row"
-        },
-        {
-          "id": 5,
-          "title": "TCP Connection Rate (req/sec by Service)",
-          "type": "timeseries",
-          "gridPos": { "h": 8, "w": 16, "x": 0, "y": 7 },
-          "targets": [
-            {
-              "expr": "sum by (service) (rate(ebpf_service_connections_total[30s]))",
-              "legendFormat": "{{service}}",
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {
-                "drawStyle": "line",
-                "lineInterpolation": "smooth",
-                "fillOpacity": 15,
-                "lineWidth": 2
-              },
-              "unit": "reqps"
-            }
-          }
-        },
-        {
-          "id": 6,
-          "title": "Traffic Distribution by Service",
-          "type": "bargauge",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 7 },
-          "targets": [
-            {
-              "expr": "ebpf_service_connections_total",
-              "legendFormat": "{{service}}",
-              "refId": "A"
-            }
-          ],
-          "options": {
-            "reduceOptions": { "calcs": ["lastNotNull"], "values": false },
-            "orientation": "horizontal",
-            "displayMode": "gradient"
-          }
-        },
-        {
           "id": 7,
           "title": "Packet Retransmission Rate (Kernel tcp_retransmit_skb)",
           "type": "timeseries",
-          "gridPos": { "h": 7, "w": 24, "x": 0, "y": 15 },
+          "gridPos": { "h": 7, "w": 24, "x": 0, "y": 14 },
           "targets": [
             {
               "expr": "rate(ebpf_tcp_retransmissions_total[30s])",

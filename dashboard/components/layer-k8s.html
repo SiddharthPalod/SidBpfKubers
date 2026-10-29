@@ -69,11 +69,11 @@
                   <div class="flex items-center gap-2.5">
                     <span class="text-base">🌀</span>
                     <div>
-                      <div class="font-bold text-slate-300 text-xs flex items-center gap-1.5">
+                      <div class="font-bold text-white text-xs flex items-center gap-1.5">
                         sample-cassandra
                         <span class="text-[9px] px-1 rounded bg-cyan-500/15 text-cyan-400 font-bold">RING</span>
                       </div>
-                      <div class="text-[10px] text-slate-500">Cassandra 5 · Leaderless Hash Ring</div>
+                      <div class="text-[10px] text-slate-400">Cassandra 4.1 · Peer-to-Peer Hash Ring</div>
                     </div>
                   </div>
                   <span id="badge-dropdown-cassandra" class="text-[9px] px-1.5 py-0.5 rounded bg-surface border-sharp text-cyan-400 font-bold">3/3</span>
@@ -118,62 +118,63 @@
               <span class="text-[9px] mono text-slate-500">3-Tier Virtual IPs</span>
             </div>
 
-            <!-- Service Card -rw (Write Primary) -->
-            <div class="border-sharp bg-surface rounded p-2 text-xs mono space-y-1">
-              <div class="flex items-center justify-between">
-                <span id="svc-rw-name" class="font-bold text-cyber-emerald flex items-center gap-1.5">
-                  <span class="h-1.5 w-1.5 rounded-full bg-cyber-emerald"></span> sample-postgres-rw
-                </span>
-                <span class="text-[9px] px-1.5 py-0.2 rounded bg-cyber-emerald/15 text-cyber-emerald border border-cyber-emerald/30 font-bold">WRITE</span>
+            <div id="service-routing-cards" class="space-y-2.5">
+              <!-- Service Card -rw (Write) -->
+              <div class="border-sharp bg-surface rounded p-2 text-xs mono space-y-1">
+                <div class="flex items-center justify-between">
+                  <span id="svc-rw-name" class="font-bold text-cyber-emerald flex items-center gap-1.5">
+                    <span class="inline-block h-3 w-32 bg-slate-800/80 rounded animate-pulse"></span>
+                  </span>
+                  <span id="svc-rw-badge" class="text-[9px] px-1.5 py-0.2 rounded bg-cyber-emerald/15 text-cyber-emerald border border-cyber-emerald/30 font-bold">WRITE</span>
+                </div>
+                <div class="text-[10px] text-slate-400 flex items-center justify-between">
+                  <span>Target: <strong id="svc-rw-target" class="text-slate-200"><span class="inline-block h-2.5 w-24 bg-slate-800/80 rounded animate-pulse align-middle"></span></strong></span>
+                  <span id="svc-rw-ip" class="text-slate-500"><span class="inline-block h-2.5 w-20 bg-slate-800/80 rounded animate-pulse align-middle"></span></span>
+                </div>
               </div>
-              <div class="text-[10px] text-slate-400 flex items-center justify-between">
-                <span>Target: <strong id="svc-rw-target" class="text-slate-200">postgres-0 (👑)</strong></span>
-                <span id="svc-rw-ip" class="text-slate-500">10.107.178.47:5432</span>
+
+              <!-- Service Card -ro (Read) -->
+              <div class="border-sharp bg-surface rounded p-2 text-xs mono space-y-1">
+                <div class="flex items-center justify-between">
+                  <span id="svc-ro-name" class="font-bold text-cyber-mint flex items-center gap-1.5">
+                    <span class="inline-block h-3 w-32 bg-slate-800/80 rounded animate-pulse"></span>
+                  </span>
+                  <span id="svc-ro-badge" class="text-[9px] px-1.5 py-0.2 rounded bg-cyber-mint/15 text-cyber-mint border border-cyber-mint/30 font-bold">READ ONLY</span>
+                </div>
+                <div class="text-[10px] text-slate-400 flex items-center justify-between">
+                  <span>Target: <strong id="svc-ro-target" class="text-slate-200"><span class="inline-block h-2.5 w-28 bg-slate-800/80 rounded animate-pulse align-middle"></span></strong></span>
+                  <span id="svc-ro-ip" class="text-slate-500"><span class="inline-block h-2.5 w-20 bg-slate-800/80 rounded animate-pulse align-middle"></span></span>
+                </div>
+              </div>
+
+              <!-- Service Card -r (Pool) -->
+              <div class="border-sharp bg-surface rounded p-2 text-xs mono space-y-1">
+                <div class="flex items-center justify-between">
+                  <span id="svc-r-name" class="font-bold text-slate-300 flex items-center gap-1.5">
+                    <span class="inline-block h-3 w-28 bg-slate-800/80 rounded animate-pulse"></span>
+                  </span>
+                  <span id="svc-r-badge" class="text-[9px] px-1.5 py-0.2 rounded bg-surface-alt text-slate-300 border-sharp font-bold">POOL</span>
+                </div>
+                <div class="text-[10px] text-slate-400 flex items-center justify-between">
+                  <span>Target: <strong id="svc-r-target" class="text-slate-200"><span class="inline-block h-2.5 w-24 bg-slate-800/80 rounded animate-pulse align-middle"></span></strong></span>
+                  <span id="svc-r-ip" class="text-slate-500"><span class="inline-block h-2.5 w-20 bg-slate-800/80 rounded animate-pulse align-middle"></span></span>
+                </div>
+              </div>
+
+              <!-- Service Card -headless (DNS) -->
+              <div class="border-sharp bg-surface rounded p-2 text-xs mono space-y-1">
+                <div class="flex items-center justify-between">
+                  <span id="svc-headless-name" class="font-bold text-slate-400 flex items-center gap-1.5">
+                    <span class="inline-block h-3 w-36 bg-slate-800/80 rounded animate-pulse"></span>
+                  </span>
+                  <span id="svc-headless-badge" class="text-[9px] px-1.5 py-0.2 rounded bg-surface-alt text-slate-400 border-sharp font-bold">DNS</span>
+                </div>
+                <div class="text-[10px] text-slate-500 flex items-center justify-between">
+                  <span>Direct StatefulSet Peering</span>
+                  <span id="svc-headless-ip" class="text-slate-400"><span class="inline-block h-2.5 w-16 bg-slate-800/80 rounded animate-pulse align-middle"></span></span>
+                </div>
               </div>
             </div>
-
-            <!-- Service Card -ro (Read Standby) -->
-            <div class="border-sharp bg-surface rounded p-2 text-xs mono space-y-1">
-              <div class="flex items-center justify-between">
-                <span id="svc-ro-name" class="font-bold text-cyber-mint flex items-center gap-1.5">
-                  <span class="h-1.5 w-1.5 rounded-full bg-cyber-mint"></span> sample-postgres-ro
-                </span>
-                <span class="text-[9px] px-1.5 py-0.2 rounded bg-cyber-mint/15 text-cyber-mint border border-cyber-mint/30 font-bold">READ ONLY</span>
-              </div>
-              <div class="text-[10px] text-slate-400 flex items-center justify-between">
-                <span>Target: <strong id="svc-ro-target" class="text-slate-200">postgres-1 (📦)</strong></span>
-                <span id="svc-ro-ip" class="text-slate-500">10.101.230.1:5432</span>
-              </div>
-            </div>
-
-            <!-- Service Card -r (All Pools) -->
-            <div class="border-sharp bg-surface rounded p-2 text-xs mono space-y-1">
-              <div class="flex items-center justify-between">
-                <span id="svc-r-name" class="font-bold text-slate-300 flex items-center gap-1.5">
-                  <span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span> sample-postgres-r
-                </span>
-                <span class="text-[9px] px-1.5 py-0.2 rounded bg-surface-alt text-slate-300 border-sharp font-bold">POOL</span>
-              </div>
-              <div class="text-[10px] text-slate-400 flex items-center justify-between">
-                <span>Target: <strong id="svc-r-target" class="text-slate-200">All Replicas</strong></span>
-                <span id="svc-r-ip" class="text-slate-500">10.109.202.188:5432</span>
-              </div>
-            </div>
-
-            <!-- Service Card -headless -->
-            <div class="border-sharp bg-surface rounded p-2 text-xs mono space-y-1">
-              <div class="flex items-center justify-between">
-                <span id="svc-headless-name" class="font-bold text-slate-400 flex items-center gap-1.5">
-                  <span class="h-1.5 w-1.5 rounded-full bg-slate-500"></span> sample-postgres-headless
-                </span>
-                <span class="text-[9px] px-1.5 py-0.2 rounded bg-surface-alt text-slate-400 border-sharp font-bold">DNS</span>
-              </div>
-              <div class="text-[10px] text-slate-500 flex items-center justify-between">
-                <span>Direct StatefulSet Peering</span>
-                <span id="svc-headless-ip" class="text-slate-400">None:5432</span>
-              </div>
-            </div>
-
           </div>
 
           <!-- Right Column: Interactive Pod Instances Bento (8 Cols) -->

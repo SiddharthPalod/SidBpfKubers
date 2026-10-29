@@ -44,6 +44,8 @@ var defaultPortRegistry = map[uint16]string{
 	6379:  "redis",
 	3306:  "mysql",
 	27017: "mongodb",
+	9042:  "cassandra",
+	7000:  "cassandra-gossip",
 	9092:  "kafka",
 	9200:  "elasticsearch",
 	80:    "http",
@@ -171,6 +173,8 @@ func main() {
 		fmt.Fprintf(w, "ebpf_postgres_connections_total %d\n", atomic.LoadUint64(getCounter(&connectionCounters, "postgresql")))
 		fmt.Fprintf(w, "ebpf_redis_connections_total %d\n", atomic.LoadUint64(getCounter(&connectionCounters, "redis")))
 		fmt.Fprintf(w, "ebpf_mongodb_connections_total %d\n", atomic.LoadUint64(getCounter(&connectionCounters, "mongodb")))
+		fmt.Fprintf(w, "# HELP ebpf_cassandra_connections_total Legacy alias for cassandra connections\n")
+		fmt.Fprintf(w, "ebpf_cassandra_connections_total %d\n", atomic.LoadUint64(getCounter(&connectionCounters, "cassandra")))
 		fmt.Fprintf(w, "ebpf_nginx_connections_total %d\n", atomic.LoadUint64(getCounter(&connectionCounters, "http"))+atomic.LoadUint64(getCounter(&connectionCounters, "http-alt")))
 	})
 

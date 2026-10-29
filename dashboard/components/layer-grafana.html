@@ -15,7 +15,7 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-2.5">
 
             <!-- Metric 1: PG Connections -->
             <div class="has-tooltip relative border-sharp bg-surface rounded p-2.5 hover:border-surface-border/80 transition">
@@ -81,6 +81,46 @@
               </div>
               <div class="tooltip-box absolute top-full left-0 mt-1 z-30 bg-surface-alt border-sharp p-2 rounded text-[10px] mono text-slate-300 w-44 shadow-xl">
                 <div>Total active document NoSQL connections via <code class="text-emerald-400">sample-mongodb-rw</code> (port 27017).</div>
+              </div>
+            </div>
+
+            <!-- Metric 4: Cassandra (Wide-Column Ring) Connections -->
+            <div class="has-tooltip relative border-sharp bg-surface rounded p-2.5 hover:border-surface-border/80 transition">
+              <div class="text-[10px] mono text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                <span>Cassandra (9042)</span>
+                <span class="text-cyan-400 text-[9px]">● RING</span>
+              </div>
+              <div class="mt-1 flex items-baseline justify-between">
+                <span id="metric-cassandra-conns" class="mono text-lg font-bold text-white">1,650</span>
+                <span class="mono text-[10px] text-cyan-400">ACTIVE</span>
+              </div>
+              <div class="h-7 w-full mt-1.5">
+                <svg class="w-full h-full" viewBox="0 0 100 28" preserveAspectRatio="none">
+                  <path d="M0,24 Q20,12 45,22 T75,10 L100,16" fill="none" stroke="#06B6D4" stroke-width="1.75" vector-effect="non-scaling-stroke"></path>
+                </svg>
+              </div>
+              <div class="tooltip-box absolute top-full left-0 mt-1 z-30 bg-surface-alt border-sharp p-2 rounded text-[10px] mono text-slate-300 w-44 shadow-xl">
+                <div>Total active peer-to-peer CQL connections via <code class="text-cyan-400">sample-cassandra-rw</code> (port 9042).</div>
+              </div>
+            </div>
+
+            <!-- Metric 5: etcd (Raft Consensus) Connections -->
+            <div class="has-tooltip relative border-sharp bg-surface rounded p-2.5 hover:border-surface-border/80 transition">
+              <div class="text-[10px] mono text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                <span>etcd Conns (2379)</span>
+                <span class="text-purple-400 text-[9px]">● RAFT</span>
+              </div>
+              <div class="mt-1 flex items-baseline justify-between">
+                <span id="metric-etcd-conns" class="mono text-lg font-bold text-white">980</span>
+                <span class="mono text-[10px] text-purple-400">ACTIVE</span>
+              </div>
+              <div class="h-7 w-full mt-1.5">
+                <svg class="w-full h-full" viewBox="0 0 100 28" preserveAspectRatio="none">
+                  <path d="M0,22 Q25,8 50,18 T75,12 L100,16" fill="none" stroke="#A855F7" stroke-width="1.75" vector-effect="non-scaling-stroke"></path>
+                </svg>
+              </div>
+              <div class="tooltip-box absolute top-full left-0 mt-1 z-30 bg-surface-alt border-sharp p-2 rounded text-[10px] mono text-slate-300 w-44 shadow-xl">
+                <div>Total active client and peer gRPC Raft connections via <code class="text-purple-400">sample-etcd-rw</code> (port 2379).</div>
               </div>
             </div>
 

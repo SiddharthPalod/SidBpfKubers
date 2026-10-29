@@ -22,6 +22,17 @@ func DesiredHeadlessService(db *databasev1alpha1.DatabaseCluster) *corev1.Servic
 			Name: "peer",
 			Port: 2380,
 		})
+	} else if eng.Name() == "cassandra" {
+		ports = append(ports,
+			corev1.ServicePort{
+				Name: "intra-node",
+				Port: 7000,
+			},
+			corev1.ServicePort{
+				Name: "jmx",
+				Port: 7199,
+			},
+		)
 	}
 
 	return &corev1.Service{

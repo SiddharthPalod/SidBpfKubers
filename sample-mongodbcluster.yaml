@@ -5,7 +5,7 @@ metadata:
   namespace: demo-app
 spec:
   engine: "mongodb"
-  replicas: 3
+  replicas: 1
   version: "7.0"
   storage: "5Gi"
   credentialsSecretRef:

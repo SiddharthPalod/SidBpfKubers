@@ -5,7 +5,7 @@ metadata:
   namespace: demo-app
 spec:
   engine: "redis"
-  replicas: 3
+  replicas: 1
   version: "7"
   storage: "5Gi"
   credentialsSecretRef:
