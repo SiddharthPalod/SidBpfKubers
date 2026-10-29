@@ -1,0 +1,10 @@
+apiVersion: database.sidkubers.io/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: sample-etcd
+  namespace: demo-app
+spec:
+  engine: "etcd"
+  replicas: 3
+  version: "v3.5.12"
+  storage: "2Gi"

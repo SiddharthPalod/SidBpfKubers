@@ -459,14 +459,14 @@ const App = {
 
       // Direct inline command/SQL output updates
       if (action === 'query_primary') {
-        const title = this.currentEngine === 'redis' ? `${this.currentCluster}-rw (👑 Master RW)` : (this.currentEngine === 'mongodb' ? `${this.currentCluster}-rw (👑 Primary RW)` : `${this.currentCluster}-rw (👑 Primary RW)`);
+        const title = this.currentEngine === 'redis' ? `${this.currentCluster}-rw (👑 Master RW)` : (this.currentEngine === 'mongodb' ? `${this.currentCluster}-rw (👑 Primary RW)` : (this.currentEngine === 'etcd' ? `${this.currentCluster}-rw (👑 Raft Leader RW)` : `${this.currentCluster}-rw (👑 Primary RW)`));
         this.displaySQLResults(title, d.command, d.output, d.duration_ms, d.success);
       } else if (action === 'query_replica') {
-        const title = this.currentEngine === 'redis' ? `${this.currentCluster}-ro (📦 Standby RO)` : (this.currentEngine === 'mongodb' ? `${this.currentCluster}-ro (📦 Secondary RO)` : `${this.currentCluster}-ro (📦 Standby RO)`);
+        const title = this.currentEngine === 'redis' ? `${this.currentCluster}-ro (📦 Standby RO)` : (this.currentEngine === 'mongodb' ? `${this.currentCluster}-ro (📦 Secondary RO)` : (this.currentEngine === 'etcd' ? `${this.currentCluster}-ro (🏛️ Raft Follower RO)` : `${this.currentCluster}-ro (📦 Standby RO)`));
         this.displaySQLResults(title, d.command, d.output, d.duration_ms, d.success);
       } else if (action === 'test_pod') {
         const podName = params.pod || 'Pod Test';
-        const testType = this.currentEngine === 'redis' ? 'Direct Redis Role' : (this.currentEngine === 'mongodb' ? 'Direct Mongo RS State' : 'Direct SQL');
+        const testType = this.currentEngine === 'redis' ? 'Direct Redis Role' : (this.currentEngine === 'mongodb' ? 'Direct Mongo RS State' : (this.currentEngine === 'etcd' ? 'Direct etcd Endpoint' : 'Direct SQL'));
         this.displaySQLResults(`${podName} (${testType})`, d.command, d.output, d.duration_ms, d.success);
       }
 
@@ -612,6 +612,9 @@ const App = {
       } else if (this.currentEngine === 'mongodb' || this.currentEngine === 'mongo') {
         sideBadge.textContent = 'MONGO-7.0';
         sideBadge.className = 'text-[9px] mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold';
+      } else if (this.currentEngine === 'etcd') {
+        sideBadge.textContent = 'ETCD-3.5';
+        sideBadge.className = 'text-[9px] mono px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-400 border border-purple-500/30 font-semibold';
       } else {
         sideBadge.textContent = 'PG-16';
         sideBadge.className = 'text-[9px] mono px-1.5 py-0.2 rounded bg-cyber-emerald/10 text-cyber-emerald border border-cyber-emerald/30 font-semibold';
@@ -624,6 +627,8 @@ const App = {
         sideRepMode.textContent = 'Master/Replica (Sync)';
       } else if (this.currentEngine === 'mongodb' || this.currentEngine === 'mongo') {
         sideRepMode.textContent = 'Replica Set (rs0 Quorum)';
+      } else if (this.currentEngine === 'etcd') {
+        sideRepMode.textContent = 'Raft Consensus Quorum';
       } else {
         sideRepMode.textContent = 'Sync (Zero Lag)';
       }
@@ -684,6 +689,7 @@ const App = {
         const isPrimary = pod.role === 'primary';
         const isRedis = this.currentEngine === 'redis';
         const isMongo = this.currentEngine === 'mongodb' || this.currentEngine === 'mongo';
+        const isEtcd = this.currentEngine === 'etcd';
 
         let badgeClass = isPrimary ? 'bg-cyber-emerald/15 text-cyber-emerald border border-cyber-emerald/30' : 'bg-slate-800 text-slate-300 border border-slate-700';
         let badgeText = isPrimary ? '👑 PRIMARY (RW)' : '📦 STANDBY (RO)';
@@ -698,6 +704,10 @@ const App = {
           badgeText = isPrimary ? '👑 PRIMARY (RW)' : '🍃 SECONDARY (RO)';
           roleDesc = isPrimary ? 'Replica Set PRIMARY (WiredTiger RW)' : 'Replica Set SECONDARY (Oplog Sync)';
           testBtnLabel = '🔍 Mongo RS Test';
+        } else if (isEtcd) {
+          badgeText = isPrimary ? '👑 LEADER (RW)' : '🏛️ FOLLOWER (RO)';
+          roleDesc = isPrimary ? 'Raft Leader (Consensus Quorum RW)' : 'Raft Follower (Log Replicated)';
+          testBtnLabel = '🔍 etcd Endpoint Test';
         }
 
         if (!isPrimary) standbyPods.push(pod.name);
@@ -708,7 +718,7 @@ const App = {
               <span class="h-1.5 w-1.5 rounded-full ${pod.ready ? 'bg-cyber-mint animate-led' : 'bg-cyber-amber'}"></span>
               <span class="text-white font-medium truncate">${pod.name}</span>
             </div>
-            <span class="text-[9px] px-1 rounded ${badgeClass} uppercase font-bold">${isPrimary ? 'PRIMARY' : 'STANDBY'}</span>
+            <span class="text-[9px] px-1 rounded ${badgeClass} uppercase font-bold">${isPrimary ? (isEtcd ? 'LEADER' : 'PRIMARY') : (isEtcd ? 'FOLLOWER' : 'STANDBY')}</span>
           </div>
         `;
 

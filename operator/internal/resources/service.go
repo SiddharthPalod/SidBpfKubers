@@ -11,6 +11,19 @@ import (
 // DesiredHeadlessService generates headless service for stable StatefulSet DNS
 func DesiredHeadlessService(db *databasev1alpha1.DatabaseCluster) *corev1.Service {
 	eng := engines.GetEngine(db.GetEngine())
+	ports := []corev1.ServicePort{
+		{
+			Name: eng.PortName(),
+			Port: eng.Port(),
+		},
+	}
+	if eng.Name() == "etcd" {
+		ports = append(ports, corev1.ServicePort{
+			Name: "peer",
+			Port: 2380,
+		})
+	}
+
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      db.Name + "-headless",
@@ -22,12 +35,7 @@ func DesiredHeadlessService(db *databasev1alpha1.DatabaseCluster) *corev1.Servic
 			Selector: map[string]string{
 				"app": db.Name,
 			},
-			Ports: []corev1.ServicePort{
-				{
-					Name: eng.PortName(),
-					Port: eng.Port(),
-				},
-			},
+			Ports: ports,
 		},
 	}
 }

@@ -41,6 +41,8 @@ func GetEngine(engineType string) Engine {
 		return &RedisEngine{}
 	case "mongodb", "mongo":
 		return &MongoDBEngine{}
+	case "etcd":
+		return &ETCDEngine{}
 	case "postgres", "postgresql", "":
 		return &PostgresEngine{}
 	default:

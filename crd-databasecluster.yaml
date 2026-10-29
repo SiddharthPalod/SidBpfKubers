@@ -43,8 +43,6 @@ spec:
         properties:
           spec:
             type: object
-            required:
-            - credentialsSecretRef
             properties:
               engine:
                 type: string
@@ -52,6 +50,8 @@ spec:
                 - postgres
                 - redis
                 - mongodb
+                - etcd
+                - cassandra
                 default: "postgres"
               replicas:
                 type: integer
@@ -68,6 +68,10 @@ spec:
                 - "7"
                 - "6.0"
                 - "7.0"
+                - "3.5"
+                - "3.5.12"
+                - "v3.5.12"
+                - "5.0"
                 default: "16"
               storage:
                 type: string
