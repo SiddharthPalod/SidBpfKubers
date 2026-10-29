@@ -178,12 +178,92 @@ const App = {
     if (panel) panel.classList.add('hidden');
   },
 
+  toggleClusterDropdown(e) {
+    if (e) e.stopPropagation();
+    const menu = document.getElementById('cluster-dropdown-menu');
+    const chevron = document.getElementById('dropdown-chevron');
+    if (!menu) return;
+    const isHidden = menu.classList.contains('hidden');
+    if (isHidden) {
+      menu.classList.remove('hidden');
+      if (chevron) chevron.classList.add('rotate-180');
+    } else {
+      menu.classList.add('hidden');
+      if (chevron) chevron.classList.remove('rotate-180');
+    }
+  },
+
+  closeClusterDropdown() {
+    const menu = document.getElementById('cluster-dropdown-menu');
+    const chevron = document.getElementById('dropdown-chevron');
+    if (menu) menu.classList.add('hidden');
+    if (chevron) chevron.classList.remove('rotate-180');
+  },
+
+  updateDropdownTriggerUI(clusterName, engine) {
+    const iconEl = document.getElementById('active-cluster-icon');
+    const labelEl = document.getElementById('active-cluster-label');
+    const pillEl = document.getElementById('active-cluster-engine-pill');
+
+    let icon = '🐘';
+    let pillText = 'POSTGRES';
+    let pillClass = 'text-[9px] px-1.5 py-0.2 rounded bg-surface border-sharp text-cyber-emerald uppercase font-bold';
+
+    if (engine === 'redis') {
+      icon = '⚡';
+      pillText = 'REDIS';
+      pillClass = 'text-[9px] px-1.5 py-0.2 rounded bg-cyber-mint/15 border border-cyber-mint/30 text-cyber-mint uppercase font-bold';
+    } else if (engine === 'mongodb' || engine === 'mongo') {
+      icon = '🍃';
+      pillText = 'MONGODB';
+      pillClass = 'text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 uppercase font-bold';
+    } else if (engine === 'cassandra') {
+      icon = '🌀';
+      pillText = 'CASSANDRA';
+      pillClass = 'text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 uppercase font-bold';
+    } else if (engine === 'etcd') {
+      icon = '🏛️';
+      pillText = 'ETCD';
+      pillClass = 'text-[9px] px-1.5 py-0.2 rounded bg-purple-500/15 border border-purple-500/30 text-purple-400 uppercase font-bold';
+    }
+
+    if (iconEl) iconEl.textContent = icon;
+    if (labelEl) labelEl.textContent = clusterName;
+    if (pillEl) {
+      pillEl.textContent = pillText;
+      pillEl.className = pillClass;
+    }
+
+    // Highlight selected item in dropdown menu
+    document.querySelectorAll('.cluster-option').forEach(el => {
+      if (el.dataset.cluster === clusterName) {
+        el.classList.add('bg-surface-hover', 'border-l-2', 'border-cyber-mint');
+      } else {
+        el.classList.remove('bg-surface-hover', 'border-l-2', 'border-cyber-mint');
+      }
+    });
+  },
+
   async selectCluster(clusterName) {
     if (!clusterName) return;
+    this.closeClusterDropdown();
     this.currentCluster = clusterName;
-    this.currentEngine = clusterName.includes('redis') ? 'redis' : 'postgres';
+    if (clusterName.includes('redis')) {
+      this.currentEngine = 'redis';
+    } else if (clusterName.includes('mongo')) {
+      this.currentEngine = 'mongodb';
+    } else if (clusterName.includes('cassandra')) {
+      this.currentEngine = 'cassandra';
+    } else if (clusterName.includes('etcd')) {
+      this.currentEngine = 'etcd';
+    } else {
+      this.currentEngine = 'postgres';
+    }
 
-    // Update Console query placeholder and labels to match engine immediately
+    // 1. Instant Optimistic UI Updates & Skeleton Loading (Smooth Transition)
+    this.applyOptimisticUI(clusterName, this.currentEngine);
+
+    // 2. Update Console query placeholder and labels to match engine immediately
     const sqlInput = document.getElementById('quick-sql-input');
     const labelPrimary = document.getElementById('label-query-primary');
     const labelReplica = document.getElementById('label-query-replica');
@@ -196,6 +276,24 @@ const App = {
       if (labelReplica) labelReplica.textContent = '🔍 Query Replica (RO)';
       if (targetDesc) targetDesc.textContent = 'sample-redis-rw / -ro (Port 6379)';
       if (engineBadge) engineBadge.textContent = 'Redis 7 Engine';
+    } else if (this.currentEngine === 'mongodb') {
+      if (sqlInput) sqlInput.value = 'rs.status()';
+      if (labelPrimary) labelPrimary.textContent = '⚡ Query Primary (RW)';
+      if (labelReplica) labelReplica.textContent = '🔍 Query Secondary (RO)';
+      if (targetDesc) targetDesc.textContent = 'sample-mongodb-rw / -ro (Port 27017)';
+      if (engineBadge) engineBadge.textContent = 'MongoDB 7.0 Engine';
+    } else if (this.currentEngine === 'cassandra') {
+      if (sqlInput) sqlInput.value = 'nodetool status';
+      if (labelPrimary) labelPrimary.textContent = '⚡ Query Coordinator (RW)';
+      if (labelReplica) labelReplica.textContent = '🔍 Query Ring Peer (RO)';
+      if (targetDesc) targetDesc.textContent = 'sample-cassandra-client (Port 9042)';
+      if (engineBadge) engineBadge.textContent = 'Cassandra 5 Ring';
+    } else if (this.currentEngine === 'etcd') {
+      if (sqlInput) sqlInput.value = 'etcdctl endpoint status -w table';
+      if (labelPrimary) labelPrimary.textContent = '⚡ Query Leader (RW)';
+      if (labelReplica) labelReplica.textContent = '🔍 Query Follower (RO)';
+      if (targetDesc) targetDesc.textContent = 'sample-etcd-client (Port 2379)';
+      if (engineBadge) engineBadge.textContent = 'etcd 3.5 Raft Quorum';
     } else {
       if (sqlInput) sqlInput.value = 'SELECT current_database(), inet_server_addr(), pg_is_in_recovery(), now();';
       if (labelPrimary) labelPrimary.textContent = '⚡ Query RW (Primary)';
@@ -211,6 +309,137 @@ const App = {
     }
   },
 
+  applyOptimisticUI(clusterName, engine) {
+    // 1. Dropdown Trigger Button
+    this.updateDropdownTriggerUI(clusterName, engine);
+
+    // 2. Sidebar CRD & Engine
+    const sideCrName = document.getElementById('sidebar-cr-name');
+    if (sideCrName) sideCrName.textContent = clusterName;
+
+    const sideBadge = document.getElementById('sidebar-engine-badge');
+    if (sideBadge) {
+      if (engine === 'redis') {
+        sideBadge.textContent = 'REDIS-7';
+        sideBadge.className = 'text-[9px] mono px-1.5 py-0.2 rounded bg-cyber-mint/10 text-cyber-mint border border-cyber-mint/30 font-semibold';
+      } else if (engine === 'mongodb' || engine === 'mongo') {
+        sideBadge.textContent = 'MONGO-7.0';
+        sideBadge.className = 'text-[9px] mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold';
+      } else if (engine === 'cassandra') {
+        sideBadge.textContent = 'CASSANDRA-5';
+        sideBadge.className = 'text-[9px] mono px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-semibold';
+      } else if (engine === 'etcd') {
+        sideBadge.textContent = 'ETCD-3.5';
+        sideBadge.className = 'text-[9px] mono px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-400 border border-purple-500/30 font-semibold';
+      } else {
+        sideBadge.textContent = 'PG-16';
+        sideBadge.className = 'text-[9px] mono px-1.5 py-0.2 rounded bg-cyber-emerald/10 text-cyber-emerald border border-cyber-emerald/30 font-semibold';
+      }
+    }
+
+    const sideRepMode = document.getElementById('sidebar-replication-mode');
+    if (sideRepMode) {
+      if (engine === 'redis') {
+        sideRepMode.textContent = 'Master/Replica (Sync)';
+      } else if (engine === 'mongodb' || engine === 'mongo') {
+        sideRepMode.textContent = 'Replica Set (rs0 Quorum)';
+      } else if (engine === 'cassandra') {
+        sideRepMode.textContent = 'Peer-to-Peer Ring (Gossip)';
+      } else if (engine === 'etcd') {
+        sideRepMode.textContent = 'Raft Consensus Quorum';
+      } else {
+        sideRepMode.textContent = 'Sync (Zero Lag)';
+      }
+    }
+
+    // 3. Service Routing Endpoints Skeleton Placeholders (Zero fake text)
+    const svcRwTarget = document.getElementById('svc-rw-target');
+    if (svcRwTarget) svcRwTarget.innerHTML = `<span class="inline-block h-3 w-24 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
+    const svcRwIp = document.getElementById('svc-rw-ip');
+    if (svcRwIp) svcRwIp.innerHTML = `<span class="inline-block h-2.5 w-20 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
+
+    const svcRoTarget = document.getElementById('svc-ro-target');
+    if (svcRoTarget) svcRoTarget.innerHTML = `<span class="inline-block h-3 w-28 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
+    const svcRoIp = document.getElementById('svc-ro-ip');
+    if (svcRoIp) svcRoIp.innerHTML = `<span class="inline-block h-2.5 w-20 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
+
+    const svcRTarget = document.getElementById('svc-r-target');
+    if (svcRTarget) svcRTarget.innerHTML = `<span class="inline-block h-3 w-24 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
+    const svcRIp = document.getElementById('svc-r-ip');
+    if (svcRIp) svcRIp.innerHTML = `<span class="inline-block h-2.5 w-20 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
+
+    const svcHeadlessIp = document.getElementById('svc-headless-ip');
+    if (svcHeadlessIp) svcHeadlessIp.innerHTML = `<span class="inline-block h-2.5 w-16 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
+
+    const treePgReplicas = document.getElementById('tree-pg-replicas');
+    if (treePgReplicas) treePgReplicas.innerHTML = `<span class="inline-block h-3 w-16 bg-slate-800/80 rounded animate-pulse align-middle"></span>`;
+
+    // 4. Honest Skeleton Loaders for Pods & Tree List (No fake numbers/statuses)
+    this.renderPodSkeletons();
+  },
+
+  renderPodSkeletons() {
+    const podsContainer = document.getElementById('pods-container');
+    const treeList = document.getElementById('tree-pod-list');
+
+    if (treeList) {
+      treeList.innerHTML = [0, 1, 2].map(() => `
+        <div class="p-2 rounded bg-surface/40 border border-surface-border/40 flex items-center justify-between animate-pulse">
+          <div class="flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-slate-700"></span>
+            <span class="h-3 w-24 bg-slate-800/80 rounded"></span>
+          </div>
+          <span class="h-3 w-10 bg-slate-800/80 rounded"></span>
+        </div>
+      `).join('');
+    }
+
+    if (podsContainer) {
+      podsContainer.innerHTML = [0, 1, 2].map(() => `
+        <div class="border-sharp bg-surface/50 rounded p-3.5 space-y-3 relative border-surface-border/40 animate-pulse">
+          <!-- Card Header Skeleton -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="h-2 w-2 rounded-full bg-slate-700"></span>
+              <span class="h-3.5 w-28 bg-slate-800/80 rounded"></span>
+            </div>
+            <span class="h-4 w-16 bg-slate-800/70 rounded border border-surface-border/30"></span>
+          </div>
+
+          <!-- Metadata Grid Skeleton -->
+          <div class="grid grid-cols-2 gap-2.5 bg-obsidian/60 p-2.5 rounded border border-surface-border/30">
+            <div class="flex items-center gap-2">
+              <span class="text-slate-600 text-[10px] mono">Status:</span>
+              <span class="h-3 w-14 bg-slate-800/80 rounded"></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-slate-600 text-[10px] mono">Ready:</span>
+              <span class="h-3 w-10 bg-slate-800/80 rounded"></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-slate-600 text-[10px] mono">Pod IP:</span>
+              <span class="h-3 w-16 bg-slate-800/80 rounded"></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-slate-600 text-[10px] mono">Restarts:</span>
+              <span class="h-3 w-8 bg-slate-800/80 rounded"></span>
+            </div>
+            <div class="col-span-2 flex items-center gap-2 pt-0.5">
+              <span class="text-slate-600 text-[10px] mono">Role:</span>
+              <span class="h-3 flex-1 bg-slate-800/80 rounded"></span>
+            </div>
+          </div>
+
+          <!-- Action Buttons Skeleton -->
+          <div class="flex items-center gap-2 pt-1">
+            <div class="h-7 flex-1 bg-slate-800/70 rounded border border-surface-border/30"></div>
+            <div class="h-7 w-16 bg-slate-800/50 rounded border border-surface-border/30"></div>
+          </div>
+        </div>
+      `).join('');
+    }
+  },
+
   async runAction(action, params = {}) {
     const spinner = document.getElementById('sync-spinner');
     if (spinner) spinner.classList.add('animate-spin');
@@ -223,19 +452,21 @@ const App = {
       const d = await API.runAction(action, params);
       Terminal.appendLog(d.command, d.output, d.duration_ms, d.success);
 
-      // Instant HUD status feedback toast directly on screen
-      this.showToast(d.command, d.output, d.duration_ms, d.success);
+      // Instant HUD status feedback toast directly on screen (muted for clean cluster switching)
+      if (action !== 'select_cluster') {
+        this.showToast(d.command, d.output, d.duration_ms, d.success);
+      }
 
       // Direct inline command/SQL output updates
       if (action === 'query_primary') {
-        const title = this.currentEngine === 'redis' ? `${this.currentCluster}-rw (👑 Master RW)` : `${this.currentCluster}-rw (👑 Primary RW)`;
+        const title = this.currentEngine === 'redis' ? `${this.currentCluster}-rw (👑 Master RW)` : (this.currentEngine === 'mongodb' ? `${this.currentCluster}-rw (👑 Primary RW)` : `${this.currentCluster}-rw (👑 Primary RW)`);
         this.displaySQLResults(title, d.command, d.output, d.duration_ms, d.success);
       } else if (action === 'query_replica') {
-        const title = this.currentEngine === 'redis' ? `${this.currentCluster}-ro (📦 Standby RO)` : `${this.currentCluster}-ro (📦 Standby RO)`;
+        const title = this.currentEngine === 'redis' ? `${this.currentCluster}-ro (📦 Standby RO)` : (this.currentEngine === 'mongodb' ? `${this.currentCluster}-ro (📦 Secondary RO)` : `${this.currentCluster}-ro (📦 Standby RO)`);
         this.displaySQLResults(title, d.command, d.output, d.duration_ms, d.success);
       } else if (action === 'test_pod') {
         const podName = params.pod || 'Pod Test';
-        const testType = this.currentEngine === 'redis' ? 'Direct Redis Role' : 'Direct SQL';
+        const testType = this.currentEngine === 'redis' ? 'Direct Redis Role' : (this.currentEngine === 'mongodb' ? 'Direct Mongo RS State' : 'Direct SQL');
         this.displaySQLResults(`${podName} (${testType})`, d.command, d.output, d.duration_ms, d.success);
       }
 
@@ -243,7 +474,9 @@ const App = {
       return d;
     } catch (err) {
       Terminal.appendLog(action, err.message, 0, false);
-      this.showToast(action, err.message, 0, false);
+      if (action !== 'select_cluster') {
+        this.showToast(action, err.message, 0, false);
+      }
     } finally {
       if (spinner) spinner.classList.remove('animate-spin');
     }
@@ -261,6 +494,11 @@ const App = {
   renderStatus(data) {
     if (!data) return;
 
+    // Prevent in-flight poll responses for old cluster from overriding newly selected cluster
+    if (this.currentCluster && data.active_cluster && data.active_cluster !== this.currentCluster) {
+      return;
+    }
+
     if (data.active_cluster) {
       this.currentCluster = data.active_cluster;
     }
@@ -268,27 +506,42 @@ const App = {
       this.currentEngine = data.engine;
     }
 
-    // 0. Dynamic Cluster Selector Tabs
-    const btnPg = document.getElementById('btn-cluster-postgres');
-    const btnRedis = document.getElementById('btn-cluster-redis');
-    if (this.currentCluster === 'sample-redis') {
-      if (btnRedis) btnRedis.className = 'px-2.5 py-1 rounded text-[11px] font-bold bg-cyber-mint/20 text-cyber-mint border border-cyber-mint/40 flex items-center gap-1.5 transition shadow-sm';
-      if (btnPg) btnPg.className = 'px-2.5 py-1 rounded text-[11px] font-medium text-slate-400 hover:text-white flex items-center gap-1.5 transition';
-    } else {
-      if (btnPg) btnPg.className = 'px-2.5 py-1 rounded text-[11px] font-bold bg-surface text-white border-sharp flex items-center gap-1.5 transition shadow-sm';
-      if (btnRedis) btnRedis.className = 'px-2.5 py-1 rounded text-[11px] font-medium text-slate-400 hover:text-white flex items-center gap-1.5 transition';
-    }
+    // 0. Update Dropdown Trigger & Options
+    this.updateDropdownTriggerUI(data.cluster_name || this.currentCluster, data.engine || this.currentEngine);
 
     if (data.clusters) {
       const pgDetail = data.clusters['sample-postgres'];
       const redisDetail = data.clusters['sample-redis'];
-      const bPg = document.getElementById('badge-postgres-status');
+      const mongoDetail = data.clusters['sample-mongodb'];
+      const cassDetail = data.clusters['sample-cassandra'];
+      const etcdDetail = data.clusters['sample-etcd'];
+
+      const bPg = document.getElementById('badge-dropdown-postgres');
       if (bPg && pgDetail) {
         bPg.textContent = `${pgDetail.ready_replicas || (pgDetail.pods ? pgDetail.pods.length : 3)}/${pgDetail.replicas || 3}`;
       }
-      const bRedis = document.getElementById('badge-redis-status');
+      const bRedis = document.getElementById('badge-dropdown-redis');
       if (bRedis && redisDetail) {
         bRedis.textContent = `${redisDetail.ready_replicas || (redisDetail.pods ? redisDetail.pods.length : 3)}/${redisDetail.replicas || 3}`;
+      }
+      const bMongo = document.getElementById('badge-dropdown-mongodb');
+      if (bMongo && mongoDetail) {
+        bMongo.textContent = `${mongoDetail.ready_replicas || (mongoDetail.pods ? mongoDetail.pods.length : 3)}/${mongoDetail.replicas || 3}`;
+      }
+      const bCass = document.getElementById('badge-dropdown-cassandra');
+      if (bCass && cassDetail) {
+        bCass.textContent = `${cassDetail.ready_replicas || (cassDetail.pods ? cassDetail.pods.length : 3)}/${cassDetail.replicas || 3}`;
+      }
+      const bEtcd = document.getElementById('badge-dropdown-etcd');
+      if (bEtcd && etcdDetail) {
+        bEtcd.textContent = `${etcdDetail.ready_replicas || (etcdDetail.pods ? etcdDetail.pods.length : 3)}/${etcdDetail.replicas || 3}`;
+      }
+
+      // Update trigger button active badge
+      const activeDetail = data.clusters[this.currentCluster];
+      const activeBadge = document.getElementById('active-cluster-badge');
+      if (activeBadge && activeDetail) {
+        activeBadge.textContent = `${activeDetail.ready_replicas || (activeDetail.pods ? activeDetail.pods.length : 3)}/${activeDetail.replicas || 3}`;
       }
     }
 
@@ -356,6 +609,9 @@ const App = {
       if (this.currentEngine === 'redis') {
         sideBadge.textContent = 'REDIS-7';
         sideBadge.className = 'text-[9px] mono px-1.5 py-0.2 rounded bg-cyber-mint/10 text-cyber-mint border border-cyber-mint/30 font-semibold';
+      } else if (this.currentEngine === 'mongodb' || this.currentEngine === 'mongo') {
+        sideBadge.textContent = 'MONGO-7.0';
+        sideBadge.className = 'text-[9px] mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold';
       } else {
         sideBadge.textContent = 'PG-16';
         sideBadge.className = 'text-[9px] mono px-1.5 py-0.2 rounded bg-cyber-emerald/10 text-cyber-emerald border border-cyber-emerald/30 font-semibold';
@@ -364,7 +620,13 @@ const App = {
 
     const sideRepMode = document.getElementById('sidebar-replication-mode');
     if (sideRepMode) {
-      sideRepMode.textContent = this.currentEngine === 'redis' ? 'Master/Replica (Sync)' : 'Sync (Zero Lag)';
+      if (this.currentEngine === 'redis') {
+        sideRepMode.textContent = 'Master/Replica (Sync)';
+      } else if (this.currentEngine === 'mongodb' || this.currentEngine === 'mongo') {
+        sideRepMode.textContent = 'Replica Set (rs0 Quorum)';
+      } else {
+        sideRepMode.textContent = 'Sync (Zero Lag)';
+      }
     }
 
     const treePgReplicas = document.getElementById('tree-pg-replicas');
@@ -421,11 +683,22 @@ const App = {
       data.pods.forEach(pod => {
         const isPrimary = pod.role === 'primary';
         const isRedis = this.currentEngine === 'redis';
+        const isMongo = this.currentEngine === 'mongodb' || this.currentEngine === 'mongo';
 
-        const badgeClass = isPrimary ? 'bg-cyber-emerald/15 text-cyber-emerald border border-cyber-emerald/30' : 'bg-slate-800 text-slate-300 border border-slate-700';
-        const badgeText = isPrimary ? (isRedis ? '👑 MASTER (RW)' : '👑 PRIMARY (RW)') : (isRedis ? '📦 REPLICA (RO)' : '📦 STANDBY (RO)');
-        const roleDesc = isPrimary ? (isRedis ? 'Redis Master (In-Memory RW)' : 'Master (WAL Read/Write)') : (isRedis ? 'Replica (replicaof Master)' : 'Streaming WAL Standby');
-        const testBtnLabel = isRedis ? '🔍 Redis Role Test' : '🔍 Direct SQL Test';
+        let badgeClass = isPrimary ? 'bg-cyber-emerald/15 text-cyber-emerald border border-cyber-emerald/30' : 'bg-slate-800 text-slate-300 border border-slate-700';
+        let badgeText = isPrimary ? '👑 PRIMARY (RW)' : '📦 STANDBY (RO)';
+        let roleDesc = isPrimary ? 'Master (WAL Read/Write)' : 'Streaming WAL Standby';
+        let testBtnLabel = '🔍 Direct SQL Test';
+
+        if (isRedis) {
+          badgeText = isPrimary ? '👑 MASTER (RW)' : '📦 REPLICA (RO)';
+          roleDesc = isPrimary ? 'Redis Master (In-Memory RW)' : 'Replica (replicaof Master)';
+          testBtnLabel = '🔍 Redis Role Test';
+        } else if (isMongo) {
+          badgeText = isPrimary ? '👑 PRIMARY (RW)' : '🍃 SECONDARY (RO)';
+          roleDesc = isPrimary ? 'Replica Set PRIMARY (WiredTiger RW)' : 'Replica Set SECONDARY (Oplog Sync)';
+          testBtnLabel = '🔍 Mongo RS Test';
+        }
 
         if (!isPrimary) standbyPods.push(pod.name);
 
@@ -495,6 +768,12 @@ const App = {
     if (data.metrics) {
       const mPg = document.getElementById('metric-pg-conns');
       if (mPg) mPg.textContent = data.metrics.pg_connections ? data.metrics.pg_connections.toLocaleString() : '2,520';
+
+      const mRedis = document.getElementById('metric-redis-conns');
+      if (mRedis) mRedis.textContent = data.metrics.redis_connections ? data.metrics.redis_connections.toLocaleString() : '1,840';
+
+      const mMongo = document.getElementById('metric-mongo-conns');
+      if (mMongo) mMongo.textContent = data.metrics.mongo_connections ? data.metrics.mongo_connections.toLocaleString() : '1,420';
 
       const mSock = document.getElementById('metric-total-sockets');
       if (mSock) mSock.textContent = data.metrics.tcp_connections ? data.metrics.tcp_connections.toLocaleString() : '9,245';
@@ -570,6 +849,7 @@ const App = {
 window.toggleLayer = (layer) => App.setLayer(layer);
 window.triggerSync = () => App.triggerSync();
 window.selectCluster = (c) => App.selectCluster(c);
+window.toggleClusterDropdown = (e) => App.toggleClusterDropdown(e);
 window.toggleTerminalDrawer = () => Terminal.toggle();
 window.clearTerminalLogs = () => Terminal.clear();
 window.executeRawCommand = () => App.executeRawCommand();
@@ -584,6 +864,14 @@ window.killPod = (pod) => App.killPod(pod);
 window.selectInstance = (pod) => App.testPod(pod);
 window.reloadGrafana = () => App.reloadGrafana();
 window.handleGrafanaFrameError = () => App.handleGrafanaError();
+
+// Close dropdown on click outside
+document.addEventListener('click', (e) => {
+  const container = document.getElementById('cluster-selector-container');
+  if (container && !container.contains(e.target)) {
+    App.closeClusterDropdown();
+  }
+});
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => App.init());

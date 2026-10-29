@@ -170,6 +170,7 @@ func main() {
 		fmt.Fprintf(w, "# HELP ebpf_postgres_connections_total Legacy alias for postgres connections\n")
 		fmt.Fprintf(w, "ebpf_postgres_connections_total %d\n", atomic.LoadUint64(getCounter(&connectionCounters, "postgresql")))
 		fmt.Fprintf(w, "ebpf_redis_connections_total %d\n", atomic.LoadUint64(getCounter(&connectionCounters, "redis")))
+		fmt.Fprintf(w, "ebpf_mongodb_connections_total %d\n", atomic.LoadUint64(getCounter(&connectionCounters, "mongodb")))
 		fmt.Fprintf(w, "ebpf_nginx_connections_total %d\n", atomic.LoadUint64(getCounter(&connectionCounters, "http"))+atomic.LoadUint64(getCounter(&connectionCounters, "http-alt")))
 	})
 

@@ -32,6 +32,7 @@ type MetricStats struct {
 	TcpRetransmits   int64 `json:"tcp_retransmits"`
 	NginxConnections int64 `json:"nginx_connections"`
 	RedisConnections int64 `json:"redis_connections"`
+	MongoConnections int64 `json:"mongo_connections"`
 }
 
 type EbpfParsedEvent struct {
@@ -268,9 +269,10 @@ func pollClusterState() {
 
 	// Fallback if no DatabaseClusters found in output
 	if len(availableClusters) == 0 {
-		availableClusters = []string{"sample-postgres", "sample-redis"}
+		availableClusters = []string{"sample-postgres", "sample-redis", "sample-mongodb"}
 		engineMap["sample-postgres"] = "postgres"
 		engineMap["sample-redis"] = "redis"
+		engineMap["sample-mongodb"] = "mongodb"
 	}
 
 	// Second pass: extract Pods and Services
@@ -388,6 +390,8 @@ func pollClusterState() {
 			defaultPort := 5432
 			if engineMap[clusterName] == "redis" {
 				defaultPort = 6379
+			} else if engineMap[clusterName] == "mongodb" || engineMap[clusterName] == "mongo" {
+				defaultPort = 27017
 			}
 			port := defaultPort
 			if len(s.Spec.Ports) > 0 {
@@ -459,12 +463,16 @@ func pollClusterState() {
 	tcpRetrans := queryPrometheusMetric("ebpf_tcp_retransmissions_total")
 	nginxConns := queryPrometheusMetric("ebpf_nginx_connections_total")
 	redisConns := queryPrometheusMetric("ebpf_redis_connections_total")
+	mongoConns := queryPrometheusMetric("ebpf_mongodb_connections_total")
 
 	if pgConns == 0 {
 		pgConns = 2520
 	}
 	if redisConns == 0 {
 		redisConns = 1840
+	}
+	if mongoConns == 0 {
+		mongoConns = 1420
 	}
 	if tcpConns == 0 {
 		tcpConns = 9245
@@ -534,6 +542,7 @@ func pollClusterState() {
 			TcpRetransmits:   tcpRetrans,
 			NginxConnections: nginxConns,
 			RedisConnections: redisConns,
+			MongoConnections: mongoConns,
 		},
 		DatabaseCluster: currentActive.DatabaseCluster,
 		LastUpdated:     time.Now().Format("15:04:05"),
@@ -601,6 +610,8 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 	activeEng := "postgres"
 	if targetCluster == "sample-redis" || (cachedState.Clusters != nil && cachedState.Clusters[targetCluster].Engine == "redis") {
 		activeEng = "redis"
+	} else if targetCluster == "sample-mongodb" || (cachedState.Clusters != nil && (cachedState.Clusters[targetCluster].Engine == "mongodb" || cachedState.Clusters[targetCluster].Engine == "mongo")) {
+		activeEng = "mongodb"
 	}
 
 	curPrimary := targetCluster + "-0"
@@ -630,7 +641,7 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 			stateMutex.Lock()
 			activeCluster = clusterName
 			stateMutex.Unlock()
-			go pollClusterState()
+			pollClusterState()
 		}
 		cmdStr = fmt.Sprintf("Cluster focus switched to '%s'", clusterName)
 		out = fmt.Sprintf("✔ Active cluster set to %s (engine: %s)", clusterName, activeEng)
@@ -643,18 +654,26 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 			}
 			cmd = strings.Trim(cmd, "\"' ")
 			cmdParts := strings.Fields(cmd)
-			args := append([]string{"exec", "-i", curPrimary, "-n", "demo-app", "--", "redis-cli", "-a", "supersecretredispassword"}, cmdParts...)
-			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- redis-cli %s", curPrimary, cmd)
+			args := append([]string{"exec", "-i", curPrimary, "-c", "redis", "-n", "demo-app", "--", "redis-cli", "-a", "supersecretredispassword"}, cmdParts...)
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -c redis -n demo-app -- redis-cli %s", curPrimary, cmd)
 			out, err = execDirect(ctx, "kubectl", args...)
 			out = cleanRedisCliOutput(out)
+		} else if activeEng == "mongodb" {
+			cmd := req.Params["sql"]
+			if cmd == "" || strings.HasPrefix(strings.ToUpper(strings.TrimSpace(cmd)), "SELECT") {
+				cmd = "rs.status()"
+			}
+			cmd = strings.Trim(cmd, "\"' ")
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -c mongodb -n demo-app -- mongosh \"mongodb://127.0.0.1:27017/?directConnection=true\" --quiet --eval \"%s\"", curPrimary, cmd)
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-c", "mongodb", "-n", "demo-app", "--", "mongosh", "mongodb://127.0.0.1:27017/?directConnection=true", "--quiet", "--eval", cmd)
 		} else {
 			sql := req.Params["sql"]
 			if sql == "" {
 				sql = "SELECT current_database() AS db, inet_server_addr() AS ip, pg_is_in_recovery() AS is_replica, now() AS time;"
 			}
 			sql = strings.Trim(sql, "\"' ")
-			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- psql -U postgres -d postgres -c \"%s\"", curPrimary, sql)
-			out, err = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-n", "demo-app", "--", "psql", "-U", "postgres", "-d", "postgres", "-c", sql)
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -c postgres -n demo-app -- psql -U postgres -d postgres -c \"%s\"", curPrimary, sql)
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-c", "postgres", "-n", "demo-app", "--", "psql", "-U", "postgres", "-d", "postgres", "-c", sql)
 		}
 
 	case "query_replica":
@@ -665,31 +684,43 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 			}
 			cmd = strings.Trim(cmd, "\"' ")
 			cmdParts := strings.Fields(cmd)
-			args := append([]string{"exec", "-i", curReplica, "-n", "demo-app", "--", "redis-cli", "-a", "supersecretredispassword"}, cmdParts...)
-			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- redis-cli %s", curReplica, cmd)
+			args := append([]string{"exec", "-i", curReplica, "-c", "redis", "-n", "demo-app", "--", "redis-cli", "-a", "supersecretredispassword"}, cmdParts...)
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -c redis -n demo-app -- redis-cli %s", curReplica, cmd)
 			out, err = execDirect(ctx, "kubectl", args...)
 			out = cleanRedisCliOutput(out)
+		} else if activeEng == "mongodb" {
+			cmd := req.Params["sql"]
+			if cmd == "" || strings.HasPrefix(strings.ToUpper(strings.TrimSpace(cmd)), "SELECT") {
+				cmd = "db.adminCommand({ ping: 1 })"
+			}
+			cmd = strings.Trim(cmd, "\"' ")
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -c mongodb -n demo-app -- mongosh \"mongodb://127.0.0.1:27017/?directConnection=true\" --quiet --eval \"%s\"", curReplica, cmd)
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", curReplica, "-c", "mongodb", "-n", "demo-app", "--", "mongosh", "mongodb://127.0.0.1:27017/?directConnection=true", "--quiet", "--eval", cmd)
 		} else {
 			sql := req.Params["sql"]
 			if sql == "" {
 				sql = "SELECT current_database() AS db, inet_server_addr() AS ip, pg_is_in_recovery() AS is_replica, pg_last_wal_receive_lsn() AS wal_lsn;"
 			}
 			sql = strings.Trim(sql, "\"' ")
-			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- psql -U postgres -d postgres -c \"%s\"", curReplica, sql)
-			out, err = execDirect(ctx, "kubectl", "exec", "-i", curReplica, "-n", "demo-app", "--", "psql", "-U", "postgres", "-d", "postgres", "-c", sql)
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -c postgres -n demo-app -- psql -U postgres -d postgres -c \"%s\"", curReplica, sql)
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", curReplica, "-c", "postgres", "-n", "demo-app", "--", "psql", "-U", "postgres", "-d", "postgres", "-c", sql)
 		}
 
 	case "burst_traffic":
 		if activeEng == "redis" {
-			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- sh -c 'for i in 1..10; do redis-cli PING; done'", curPrimary)
-			out, err = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-n", "demo-app", "--", "sh", "-c", "for i in 1 2 3 4 5 6 7 8 9 10; do redis-cli -a supersecretredispassword PING; done")
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -c redis -n demo-app -- sh -c 'for i in 1..10; do redis-cli PING; done'", curPrimary)
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-c", "redis", "-n", "demo-app", "--", "sh", "-c", "for i in 1 2 3 4 5 6 7 8 9 10; do redis-cli -a supersecretredispassword PING; done")
 			out = cleanRedisCliOutput(out)
 			out = strings.TrimSpace(out) + "\n✔ 10 Redis PING requests executed on Master (port 6379) -> eBPF socket events recorded."
+		} else if activeEng == "mongodb" {
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -c mongodb -n demo-app -- sh -c 'for i in 1..10; do mongosh --quiet --eval \"db.adminCommand({ ping: 1 })\"; done'", curPrimary)
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-c", "mongodb", "-n", "demo-app", "--", "sh", "-c", "for i in 1 2 3 4 5 6 7 8 9 10; do mongosh --quiet --eval \"db.adminCommand({ ping: 1 })\"; done")
+			out = strings.TrimSpace(out) + "\n✔ 10 MongoDB ping operations executed on Primary (port 27017) -> eBPF socket events recorded."
 		} else {
 			// Run 15 fast queries via a single connection - each SELECT hits the DB and causes a real TCP event
 			burstSQL := "SELECT count(*) AS connections FROM pg_stat_activity; SELECT current_database(), pg_is_in_recovery(), now(); SELECT count(*) AS connections FROM pg_stat_activity; SELECT current_database(), pg_is_in_recovery(), now(); SELECT count(*) AS connections FROM pg_stat_activity; SELECT current_database(), pg_is_in_recovery(), now(); SELECT count(*) AS connections FROM pg_stat_activity; SELECT current_database(), pg_is_in_recovery(), now(); SELECT count(*) AS connections FROM pg_stat_activity; SELECT current_database(), pg_is_in_recovery(), now();"
-			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- psql -U postgres -d postgres -c \"%s\"", curPrimary, burstSQL)
-			out, err = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-n", "demo-app", "--", "psql", "-U", "postgres", "-d", "postgres", "-c", burstSQL)
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -c postgres -n demo-app -- psql -U postgres -d postgres -c \"%s\"", curPrimary, burstSQL)
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-c", "postgres", "-n", "demo-app", "--", "psql", "-U", "postgres", "-d", "postgres", "-c", burstSQL)
 		}
 
 	case "switchover":
@@ -728,14 +759,19 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 
 	case "simulate_packet_drop":
 		if activeEng == "redis" {
-			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- redis-cli -h 127.0.0.1 -p 6389 PING", curPrimary)
-			out, _ = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-n", "demo-app", "--", "redis-cli", "-h", "127.0.0.1", "-p", "6389", "PING")
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -c redis -n demo-app -- redis-cli -h 127.0.0.1 -p 6389 PING", curPrimary)
+			out, _ = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-c", "redis", "-n", "demo-app", "--", "redis-cli", "-h", "127.0.0.1", "-p", "6389", "PING")
 			out = cleanRedisCliOutput(out)
 			out = strings.TrimSpace(out) + "\n✔ TCP RST generated (Connection Refused on closed port 6389) -> eBPF kernel tracepoint tcp_retransmit_skb alerted."
 			err = nil
+		} else if activeEng == "mongodb" {
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -c mongodb -n demo-app -- mongosh --host 127.0.0.1 --port 27027 --eval \"db.adminCommand({ ping: 1 })\"", curPrimary)
+			out, _ = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-c", "mongodb", "-n", "demo-app", "--", "mongosh", "--host", "127.0.0.1", "--port", "27027", "--eval", "db.adminCommand({ ping: 1 })")
+			out = strings.TrimSpace(out) + "\n✔ TCP RST generated (Connection Refused on closed port 27027) -> eBPF kernel tracepoint tcp_retransmit_skb alerted."
+			err = nil
 		} else {
-			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- psql -U postgres -h 127.0.0.1 -p 5440 -d postgres -c \"SELECT 1;\"", curPrimary)
-			out, _ = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-n", "demo-app", "--", "psql", "-U", "postgres", "-h", "127.0.0.1", "-p", "5440", "-d", "postgres", "-c", "SELECT 1;")
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -c postgres -n demo-app -- psql -U postgres -h 127.0.0.1 -p 5440 -d postgres -c \"SELECT 1;\"", curPrimary)
+			out, _ = execDirect(ctx, "kubectl", "exec", "-i", curPrimary, "-c", "postgres", "-n", "demo-app", "--", "psql", "-U", "postgres", "-h", "127.0.0.1", "-p", "5440", "-d", "postgres", "-c", "SELECT 1;")
 			out = strings.TrimSpace(out) + "\n✔ TCP RST generated (Connection Refused on closed port 5440) -> eBPF kernel tracepoint tcp_retransmit_skb alerted."
 			err = nil
 		}
@@ -746,13 +782,17 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 			podName = curPrimary
 		}
 		if strings.Contains(podName, "redis") || activeEng == "redis" {
-			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- redis-cli role", podName)
-			out, err = execDirect(ctx, "kubectl", "exec", "-i", podName, "-n", "demo-app", "--", "redis-cli", "-a", "supersecretredispassword", "role")
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -c redis -n demo-app -- redis-cli role", podName)
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", podName, "-c", "redis", "-n", "demo-app", "--", "redis-cli", "-a", "supersecretredispassword", "role")
 			out = cleanRedisCliOutput(out)
+		} else if strings.Contains(podName, "mongo") || activeEng == "mongodb" {
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -c mongodb -n demo-app -- mongosh \"mongodb://127.0.0.1:27017/?directConnection=true\" --quiet --eval \"rs.status().members.find(m => m.self).stateStr\"", podName)
+			evalScript := `try { const s = rs.status(); const me = (s.members||[]).find(m => m.self) || (s.members||[])[0]; print(me ? me.stateStr : 'INITIALIZING'); } catch(e) { print(JSON.stringify(db.adminCommand({ ping: 1 }))); }`
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", podName, "-c", "mongodb", "-n", "demo-app", "--", "mongosh", "mongodb://127.0.0.1:27017/?directConnection=true", "--quiet", "--eval", evalScript)
 		} else {
 			testSQL := "SELECT current_database() AS db, inet_server_addr() AS ip, pg_is_in_recovery() AS is_replica, now() AS time;"
-			cmdStr = fmt.Sprintf("kubectl exec -i %s -n demo-app -- psql -U postgres -d postgres -c \"%s\"", podName, testSQL)
-			out, err = execDirect(ctx, "kubectl", "exec", "-i", podName, "-n", "demo-app", "--", "psql", "-U", "postgres", "-d", "postgres", "-c", testSQL)
+			cmdStr = fmt.Sprintf("kubectl exec -i %s -c postgres -n demo-app -- psql -U postgres -d postgres -c \"%s\"", podName, testSQL)
+			out, err = execDirect(ctx, "kubectl", "exec", "-i", podName, "-c", "postgres", "-n", "demo-app", "--", "psql", "-U", "postgres", "-d", "postgres", "-c", testSQL)
 		}
 
 	case "cleanup_test_pods":
@@ -892,6 +932,8 @@ func handleEbpfEvents(w http.ResponseWriter, r *http.Request) {
 					proto = "PGSQL"
 				case "redis", "port-6379":
 					proto = "REDIS"
+				case "mongodb", "mongo", "port-27017":
+					proto = "MONGODB"
 				case "http-alt", "http":
 					proto = "HTTP"
 				case "port-3000":
@@ -900,7 +942,7 @@ func handleEbpfEvents(w http.ResponseWriter, r *http.Request) {
 					proto = "PROM"
 				case "port-8181", "port-8080":
 					proto = "OPERATOR"
-				case "port-5440", "port-6389":
+				case "port-5440", "port-6389", "port-27027":
 					proto = "CHAOS"
 				default:
 					proto = strings.ToUpper(protoStr)
@@ -915,10 +957,12 @@ func handleEbpfEvents(w http.ResponseWriter, r *http.Request) {
 			pod = "prometheus"
 		} else if strings.Contains(dst, ":8080") || strings.Contains(dst, ":8181") {
 			pod = "database-operator"
-		} else if isDrop || strings.Contains(dst, ":5440") || strings.Contains(dst, ":6389") {
+		} else if isDrop || strings.Contains(dst, ":5440") || strings.Contains(dst, ":6389") || strings.Contains(dst, ":27027") {
 			pod = primary + " [CHAOS]"
 		} else if strings.Contains(dst, ":6379") {
 			pod = "sample-redis-0"
+		} else if strings.Contains(dst, ":27017") {
+			pod = "sample-mongodb-0"
 		} else if strings.Contains(dst, ":5432") {
 			pod = "sample-postgres-0"
 		}

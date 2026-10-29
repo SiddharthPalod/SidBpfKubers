@@ -89,14 +89,30 @@ const EbpfWaterfall = {
   renderFallbackRow() {
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
+    const engine = (window.App && window.App.currentEngine) || 'postgres';
+
+    let proto = 'PGSQL';
+    let dst = '10.1.0.129:5432';
+    let pod = 'sample-postgres-0';
+
+    if (engine === 'redis') {
+      proto = 'REDIS';
+      dst = '10.1.0.128:6379';
+      pod = 'sample-redis-0';
+    } else if (engine === 'mongodb' || engine === 'mongo') {
+      proto = 'MONGODB';
+      dst = '10.1.0.130:27017';
+      pod = 'sample-mongodb-0';
+    }
+
     this.renderRow({
       timestamp: timeStr,
       probe: 'sock/inet_sock_set_state',
-      src: '10.1.0.1:54320',
-      dst: '10.1.0.129:5432',
-      proto: 'PGSQL',
+      src: '10.1.0.1:48210',
+      dst: dst,
+      proto: proto,
       life: '0.92 ms',
-      pod: 'sample-postgres-0',
+      pod: pod,
       is_drop: false
     });
   },
@@ -112,14 +128,20 @@ const EbpfWaterfall = {
 
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
+    const cluster = (window.App && window.App.currentCluster) || 'sample-postgres';
+    const engine = (window.App && window.App.currentEngine) || 'postgres';
+    let targetPort = '5440';
+    if (engine === 'redis') targetPort = '6389';
+    if (engine === 'mongodb' || engine === 'mongo') targetPort = '27027';
+
     this.renderRow({
       timestamp: timeStr,
       probe: 'tcp/tcp_retransmit_skb',
-      src: '127.0.0.1:5439',
-      dst: '127.0.0.1:5440',
+      src: '127.0.0.1:49152',
+      dst: `127.0.0.1:${targetPort}`,
       proto: 'TCP_RST',
       life: '0.04 ms',
-      pod: 'sample-postgres-0 [CHAOS]',
+      pod: `${cluster}-0 [CHAOS]`,
       is_drop: true
     });
   }

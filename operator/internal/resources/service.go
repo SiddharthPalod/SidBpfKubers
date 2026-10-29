@@ -17,7 +17,8 @@ func DesiredHeadlessService(db *databasev1alpha1.DatabaseCluster) *corev1.Servic
 			Namespace: db.Namespace,
 		},
 		Spec: corev1.ServiceSpec{
-			ClusterIP: corev1.ClusterIPNone,
+			ClusterIP:                corev1.ClusterIPNone,
+			PublishNotReadyAddresses: true,
 			Selector: map[string]string{
 				"app": db.Name,
 			},

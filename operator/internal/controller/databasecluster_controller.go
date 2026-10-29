@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -272,44 +273,60 @@ func (r *DatabaseClusterReconciler) reconcileStatefulSet(ctx context.Context, db
 				needsUpdate = true
 			}
 
-			if target.LivenessProbe == nil || target.ReadinessProbe == nil {
-				target.LivenessProbe = desiredContainer.LivenessProbe
-				target.ReadinessProbe = desiredContainer.ReadinessProbe
-				needsUpdate = true
-			}
-
-			if target.Resources.Requests == nil || target.Resources.Limits == nil {
+			if !reflect.DeepEqual(target.Resources, desiredContainer.Resources) {
+				fmt.Printf("    Updating container resources for %s: %v -> %v\n", target.Name, target.Resources.Limits, desiredContainer.Resources.Limits)
 				target.Resources = desiredContainer.Resources
 				needsUpdate = true
 			}
 
-			if len(target.Command) == 0 {
+			if !reflect.DeepEqual(target.Env, desiredContainer.Env) {
+				target.Env = desiredContainer.Env
+				needsUpdate = true
+			}
+
+			if !reflect.DeepEqual(target.StartupProbe, desiredContainer.StartupProbe) {
+				target.StartupProbe = desiredContainer.StartupProbe
+				needsUpdate = true
+			}
+
+			if !reflect.DeepEqual(target.LivenessProbe, desiredContainer.LivenessProbe) {
+				target.LivenessProbe = desiredContainer.LivenessProbe
+				needsUpdate = true
+			}
+
+			if !reflect.DeepEqual(target.ReadinessProbe, desiredContainer.ReadinessProbe) {
+				target.ReadinessProbe = desiredContainer.ReadinessProbe
+				needsUpdate = true
+			}
+
+			if !reflect.DeepEqual(target.Command, desiredContainer.Command) {
 				target.Command = desiredContainer.Command
 				needsUpdate = true
 			}
 		}
 
-		if len(sts.Spec.Template.Spec.TopologySpreadConstraints) == 0 {
+		if !reflect.DeepEqual(sts.Spec.Template.Spec.TopologySpreadConstraints, desired.Spec.Template.Spec.TopologySpreadConstraints) {
 			sts.Spec.Template.Spec.TopologySpreadConstraints = desired.Spec.Template.Spec.TopologySpreadConstraints
 			needsUpdate = true
 		}
 
-		if len(sts.Spec.Template.Spec.Volumes) < len(desired.Spec.Template.Spec.Volumes) {
+		if len(sts.Spec.Template.Spec.Volumes) != len(desired.Spec.Template.Spec.Volumes) {
 			sts.Spec.Template.Spec.Volumes = desired.Spec.Template.Spec.Volumes
 			needsUpdate = true
 		}
 
-		if secretHash != "" {
-			if sts.Spec.Template.Annotations == nil {
-				sts.Spec.Template.Annotations = make(map[string]string)
-			}
-			if sts.Spec.Template.Annotations["database.sidkubers.io/secret-hash"] != secretHash {
-				sts.Spec.Template.Annotations["database.sidkubers.io/secret-hash"] = secretHash
+		if sts.Spec.Template.Annotations == nil {
+			sts.Spec.Template.Annotations = make(map[string]string)
+		}
+		for k, v := range desired.Spec.Template.Annotations {
+			if sts.Spec.Template.Annotations[k] != v {
+				sts.Spec.Template.Annotations[k] = v
 				needsUpdate = true
 			}
 		}
 
 		if needsUpdate {
+			fmt.Printf("    [Reconcile] Applying StatefulSet updates for: %s\n", sts.Name)
 			if err := r.Update(ctx, sts); err != nil {
 				return nil, true, err
 			}
@@ -336,6 +353,13 @@ func (r *DatabaseClusterReconciler) ensureService(ctx context.Context, db *datab
 		}
 		return err
 	}
+
+	if existing.Spec.PublishNotReadyAddresses != desired.Spec.PublishNotReadyAddresses {
+		existing.Spec.PublishNotReadyAddresses = desired.Spec.PublishNotReadyAddresses
+		fmt.Printf("    Updating Service: %s -> PublishNotReadyAddresses: %v\n", existing.Name, desired.Spec.PublishNotReadyAddresses)
+		return r.Update(ctx, existing)
+	}
+
 	return nil
 }
 

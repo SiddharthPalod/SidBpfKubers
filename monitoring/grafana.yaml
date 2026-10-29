@@ -60,7 +60,7 @@ data:
           "id": 1,
           "title": "PostgreSQL Connections",
           "type": "stat",
-          "gridPos": { "h": 5, "w": 6, "x": 0, "y": 1 },
+          "gridPos": { "h": 5, "w": 5, "x": 0, "y": 1 },
           "targets": [
             {
               "expr": "sum(ebpf_service_connections_total{service=\"postgresql\"}) or ebpf_postgres_connections_total or vector(0)",
@@ -92,7 +92,7 @@ data:
           "id": 2,
           "title": "Redis Connections",
           "type": "stat",
-          "gridPos": { "h": 5, "w": 6, "x": 6, "y": 1 },
+          "gridPos": { "h": 5, "w": 5, "x": 5, "y": 1 },
           "targets": [
             {
               "expr": "sum(ebpf_service_connections_total{service=\"redis\"}) or ebpf_redis_connections_total or vector(0)",
@@ -121,20 +121,20 @@ data:
           }
         },
         {
-          "id": 3,
-          "title": "HTTP / Nginx Connections",
+          "id": 10,
+          "title": "MongoDB (NoSQL) Connections",
           "type": "stat",
-          "gridPos": { "h": 5, "w": 6, "x": 12, "y": 1 },
+          "gridPos": { "h": 5, "w": 5, "x": 10, "y": 1 },
           "targets": [
             {
-              "expr": "sum(ebpf_service_connections_total{service=~\"http.*\"}) or ebpf_nginx_connections_total or vector(0)",
-              "legendFormat": "HTTP",
+              "expr": "sum(ebpf_service_connections_total{service=\"mongodb\"}) or ebpf_mongodb_connections_total or vector(0)",
+              "legendFormat": "MongoDB",
               "refId": "A"
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "color": { "mode": "fixed", "fixedColor": "#56A64B" },
+              "color": { "mode": "fixed", "fixedColor": "#10B981" },
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
@@ -153,10 +153,42 @@ data:
           }
         },
         {
+          "id": 3,
+          "title": "HTTP / Nginx Connections",
+          "type": "stat",
+          "gridPos": { "h": 5, "w": 4, "x": 15, "y": 1 },
+          "targets": [
+            {
+              "expr": "sum(ebpf_service_connections_total{service=~\"http.*\"}) or ebpf_nginx_connections_total or vector(0)",
+              "legendFormat": "HTTP",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "fixed", "fixedColor": "#FADE2A" },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "yellow", "value": null }
+                ]
+              },
+              "unit": "short"
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "values": false },
+            "orientation": "auto",
+            "textMode": "auto",
+            "graphMode": "area"
+          }
+        },
+        {
           "id": 4,
           "title": "TCP Retransmissions / Drops",
           "type": "stat",
-          "gridPos": { "h": 5, "w": 6, "x": 18, "y": 1 },
+          "gridPos": { "h": 5, "w": 5, "x": 19, "y": 1 },
           "targets": [
             {
               "expr": "ebpf_tcp_retransmissions_total",

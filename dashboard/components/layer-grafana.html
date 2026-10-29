@@ -21,11 +21,11 @@
             <div class="has-tooltip relative border-sharp bg-surface rounded p-2.5 hover:border-surface-border/80 transition">
               <div class="text-[10px] mono text-slate-400 uppercase tracking-wider flex items-center justify-between">
                 <span>PG Conns (5432)</span>
-                <span class="text-cyber-mint text-[9px]">● LIVE</span>
+                <span class="text-cyber-mint text-[9px]">● SQL</span>
               </div>
               <div class="mt-1 flex items-baseline justify-between">
                 <span id="metric-pg-conns" class="mono text-lg font-bold text-white">2,520</span>
-                <span class="mono text-[10px] text-cyber-mint">↑ 8.2%</span>
+                <span class="mono text-[10px] text-cyber-mint">ACTIVE</span>
               </div>
               <div class="h-7 w-full mt-1.5">
                 <svg class="w-full h-full" viewBox="0 0 100 28" preserveAspectRatio="none">
@@ -40,31 +40,51 @@
                 </svg>
               </div>
               <div class="tooltip-box absolute top-full left-0 mt-1 z-30 bg-surface-alt border-sharp p-2 rounded text-[10px] mono text-slate-300 w-44 shadow-xl">
-                <div>Total active client connections via <code class="text-cyber-emerald">sample-postgres-rw</code> service. Pool max: 100.</div>
+                <div>Total active client connections via <code class="text-cyber-emerald">sample-postgres-rw</code> service (port 5432).</div>
               </div>
             </div>
 
-            <!-- Metric 2: CPU Throttling Rate -->
+            <!-- Metric 2: Redis Connections -->
             <div class="has-tooltip relative border-sharp bg-surface rounded p-2.5 hover:border-surface-border/80 transition">
               <div class="text-[10px] mono text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                <span>CPU Throttle</span>
-                <span class="text-cyber-mint text-[9px]">0.02%</span>
+                <span>Redis Conns (6379)</span>
+                <span class="text-cyber-mint text-[9px]">● CACHE</span>
               </div>
               <div class="mt-1 flex items-baseline justify-between">
-                <span id="metric-cpu-throttle" class="mono text-lg font-bold text-white">0.4 ms</span>
-                <span class="mono text-[10px] text-slate-500">Quota 1.0</span>
+                <span id="metric-redis-conns" class="mono text-lg font-bold text-white">1,840</span>
+                <span class="mono text-[10px] text-cyber-mint">ACTIVE</span>
               </div>
               <div class="h-7 w-full mt-1.5">
                 <svg class="w-full h-full" viewBox="0 0 100 28" preserveAspectRatio="none">
-                  <path d="M0,24 Q25,22 50,25 T80,23 L100,24" fill="none" stroke="#10B981" stroke-width="1.75" vector-effect="non-scaling-stroke"></path>
+                  <path d="M0,22 Q25,12 50,20 T75,14 L100,18" fill="none" stroke="#EF4444" stroke-width="1.75" vector-effect="non-scaling-stroke"></path>
                 </svg>
               </div>
               <div class="tooltip-box absolute top-full left-0 mt-1 z-30 bg-surface-alt border-sharp p-2 rounded text-[10px] mono text-slate-300 w-44 shadow-xl">
-                <div>Cgroups v2 throttling periods per scrape cycle across cluster pods.</div>
+                <div>Total active in-memory cache client connections via <code class="text-cyber-mint">sample-redis-rw</code> (port 6379).</div>
               </div>
             </div>
 
-            <!-- Metric 3: Total Kernel Sockets (eBPF) -->
+            <!-- Metric 3: MongoDB (NoSQL) Connections -->
+            <div class="has-tooltip relative border-sharp bg-surface rounded p-2.5 hover:border-surface-border/80 transition">
+              <div class="text-[10px] mono text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                <span>Mongo Conns (27017)</span>
+                <span class="text-emerald-400 text-[9px]">● NoSQL</span>
+              </div>
+              <div class="mt-1 flex items-baseline justify-between">
+                <span id="metric-mongo-conns" class="mono text-lg font-bold text-white">1,420</span>
+                <span class="mono text-[10px] text-emerald-400">ACTIVE</span>
+              </div>
+              <div class="h-7 w-full mt-1.5">
+                <svg class="w-full h-full" viewBox="0 0 100 28" preserveAspectRatio="none">
+                  <path d="M0,24 Q20,10 40,22 T70,16 L100,12" fill="none" stroke="#10B981" stroke-width="1.75" vector-effect="non-scaling-stroke"></path>
+                </svg>
+              </div>
+              <div class="tooltip-box absolute top-full left-0 mt-1 z-30 bg-surface-alt border-sharp p-2 rounded text-[10px] mono text-slate-300 w-44 shadow-xl">
+                <div>Total active document NoSQL connections via <code class="text-emerald-400">sample-mongodb-rw</code> (port 27017).</div>
+              </div>
+            </div>
+
+            <!-- Metric 4: Total Kernel Sockets (eBPF) -->
             <div class="has-tooltip relative border-sharp bg-surface rounded p-2.5 hover:border-surface-border/80 transition">
               <div class="text-[10px] mono text-slate-400 uppercase tracking-wider flex items-center justify-between">
                 <span>Kernel Sockets</span>

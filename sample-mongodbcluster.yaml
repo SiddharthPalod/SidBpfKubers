@@ -1,0 +1,22 @@
+apiVersion: database.sidkubers.io/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: sample-mongodb
+  namespace: demo-app
+spec:
+  engine: "mongodb"
+  replicas: 3
+  version: "7.0"
+  storage: "5Gi"
+  credentialsSecretRef:
+    name: mongodb-credentials
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mongodb-credentials
+  namespace: demo-app
+type: Opaque
+stringData:
+  username: "admin"
+  password: "supersecretmongopassword"

@@ -39,6 +39,8 @@ func GetEngine(engineType string) Engine {
 	switch strings.ToLower(strings.TrimSpace(engineType)) {
 	case "redis":
 		return &RedisEngine{}
+	case "mongodb", "mongo":
+		return &MongoDBEngine{}
 	case "postgres", "postgresql", "":
 		return &PostgresEngine{}
 	default:

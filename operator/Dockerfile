@@ -5,15 +5,18 @@ WORKDIR /workspace
 
 # Copy go modules
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 
 # Copy source code
 COPY cmd/ cmd/
 COPY api/ api/
 COPY internal/ internal/
 
-# Build static binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager cmd/main.go
+# Build static binary with BuildKit caching and incremental compilation
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o manager cmd/main.go
 
 # Runtime stage
 FROM alpine:3.20

@@ -26,14 +26,15 @@ func DesiredStatefulSet(db *databasev1alpha1.DatabaseCluster, secretHash string)
 		"app": db.Name,
 	}
 
-	annotations := make(map[string]string)
-	if secretHash != "" {
-		annotations["database.sidkubers.io/secret-hash"] = secretHash
-	}
-
 	eng := engines.GetEngine(db.GetEngine())
 	container := eng.BuildContainer(db)
 	volumes := eng.Volumes(db)
+
+	annotations := make(map[string]string)
+	annotations["kubectl.kubernetes.io/default-container"] = container.Name
+	if secretHash != "" {
+		annotations["database.sidkubers.io/secret-hash"] = secretHash
+	}
 
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -41,8 +42,9 @@ func DesiredStatefulSet(db *databasev1alpha1.DatabaseCluster, secretHash string)
 			Namespace: db.Namespace,
 		},
 		Spec: appsv1.StatefulSetSpec{
-			ServiceName: db.Name + "-headless",
-			Replicas:    &replicas,
+			ServiceName:         db.Name + "-headless",
+			Replicas:            &replicas,
+			PodManagementPolicy: appsv1.ParallelPodManagement,
 			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
 				Type: appsv1.RollingUpdateStatefulSetStrategyType,
 			},
