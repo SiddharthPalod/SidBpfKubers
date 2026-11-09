@@ -47,7 +47,12 @@ func (r *DatabaseClusterReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return result, err
 	}
 
-	// 3. Secret hash for automated rotation
+	// 3. Auto-provision credentials secret if specified but not yet created
+	if err := r.ensureCredentialsSecret(ctx, &db); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// 4. Secret hash for automated rotation
 	secretHash := r.fetchSecretHash(ctx, &db)
 
 	// 4. Ensure Init Script ConfigMap (Sync/Async WAL Streaming Replication)
@@ -192,6 +197,44 @@ func (r *DatabaseClusterReconciler) handleFinalizers(ctx context.Context, db *da
 		}
 	}
 	return ctrl.Result{}, nil
+}
+
+func (r *DatabaseClusterReconciler) ensureCredentialsSecret(ctx context.Context, db *databasev1alpha1.DatabaseCluster) error {
+	if db.Spec.CredentialsSecretRef.Name == "" {
+		return nil
+	}
+	var secret corev1.Secret
+	secretKey := client.ObjectKey{Namespace: db.Namespace, Name: db.Spec.CredentialsSecretRef.Name}
+	if err := r.Get(ctx, secretKey, &secret); err != nil {
+		if apierrors.IsNotFound(err) {
+			defaultPass := "postgrespassword"
+			defaultUser := "postgres"
+			if db.Spec.Engine == "redis" {
+				defaultUser = "default"
+				defaultPass = "redispassword"
+			} else if db.Spec.Engine == "mongodb" || db.Spec.Engine == "mongo" {
+				defaultUser = "admin"
+				defaultPass = "mongopassword"
+			}
+			newSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      db.Spec.CredentialsSecretRef.Name,
+					Namespace: db.Namespace,
+				},
+				StringData: map[string]string{
+					"username": defaultUser,
+					"password": defaultPass,
+				},
+			}
+			if err := ctrl.SetControllerReference(db, newSecret, r.Scheme); err != nil {
+				return err
+			}
+			fmt.Printf("    Auto-provisioning default credentials Secret: %s in %s\n", newSecret.Name, newSecret.Namespace)
+			return r.Create(ctx, newSecret)
+		}
+		return err
+	}
+	return nil
 }
 
 func (r *DatabaseClusterReconciler) fetchSecretHash(ctx context.Context, db *databasev1alpha1.DatabaseCluster) string {

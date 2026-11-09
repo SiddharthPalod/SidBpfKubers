@@ -46,3 +46,18 @@ spec:
       - name: bpf-fs
         hostPath:
           path: /sys/fs/bpf
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ebpf-agent
+  namespace: sidkubers-system
+  labels:
+    app: ebpf-agent
+spec:
+  selector:
+    app: ebpf-agent
+  ports:
+  - name: metrics
+    port: 9090
+    targetPort: 9090

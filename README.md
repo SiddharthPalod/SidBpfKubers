@@ -126,6 +126,8 @@ SidBpfKubers leverages the **Strategy Pattern** (`operator/internal/engines/`) t
 SidBpfKubers/
 ├── crd-databasecluster.yaml     # CustomResourceDefinition specification
 ├── examples/                    # Ready-to-apply database cluster manifests
+│   ├── demo-app.yaml            # Target application namespace specification
+│   ├── postgres-secret.yaml     # Sample database credentials secret
 │   ├── sample-postgres.yaml     # PostgreSQL 16 streaming replication cluster
 │   ├── sample-redis.yaml        # Redis 7 Master/Replica cluster
 │   ├── sample-mongodb.yaml      # MongoDB 7.0 Replica Set (rs0) cluster
@@ -182,8 +184,11 @@ SidBpfKubers/
 # 1. Register CustomResourceDefinition
 kubectl apply -f crd-databasecluster.yaml
 
-# 2. Deploy Operator, RBAC policies, and namespace
+# 2. Deploy Operator, RBAC policies, and namespaces (sidkubers-system & demo-app)
 kubectl apply -f operator/deploy/operator.yaml
+
+# Alternatively, create the demo-app namespace standalone if needed:
+kubectl apply -f examples/demo-app.yaml
 ```
 
 #### Step 2: Provision Database Clusters (from `examples/`)
@@ -214,8 +219,9 @@ kubectl get pods -n demo-app -o wide
 
 #### Step 3: Deploy In-Kernel eBPF Agent & Monitoring Stack
 ```bash
-# Launch eBPF tracing DaemonSet
+# Launch eBPF tracing DaemonSet and metrics service
 kubectl apply -f ebpf-agent/deploy/daemonset.yaml
+kubectl apply -f monitoring/ebpf-service.yaml
 
 # Deploy Prometheus and Grafana
 kubectl apply -f monitoring/prometheus.yaml
