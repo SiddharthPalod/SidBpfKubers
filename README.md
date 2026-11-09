@@ -28,6 +28,10 @@ Traditional Kubernetes database operators manage stateful workloads reactively t
 * **Atomic 3-Tier Service Routing**: Automatically allocates virtual IPs (`-rw` write primary, `-ro` read-only pool, `-r` all-replica load-balanced, `-headless` peer discovery) with native engine port mapping.
 * **Mission Control Cockpit**: An archival Deep Forest / Obsidian visual cockpit featuring real-time cluster topography, glitch-free optimistic skeleton loaders, direct query test benches, and live embedded Grafana & Prometheus sparklines.
 
+### Demo
+[![SidBpfKubers Demo](https://img.youtube.com/vi/8gpZY1Hii90/maxresdefault.jpg)](https://youtu.be/8gpZY1Hii90)
+[Watch the full demo on YouTube](https://youtu.be/8gpZY1Hii90)
+
 ---
 
 ## Architecture
